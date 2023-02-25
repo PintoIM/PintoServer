@@ -3,7 +3,7 @@ package me.vlod.pinto.consolehandler;
 import java.util.ArrayList;
 import java.util.Arrays;
 
-import org.apache.commons.lang.ArrayUtils;
+import org.apache.commons.lang3.ArrayUtils;
 
 import me.vlod.pinto.PintoServer;
 import me.vlod.pinto.Tuple;
