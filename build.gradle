@@ -1,0 +1,31 @@
+plugins {
+    id 'com.github.johnrengelman.shadow' version '7.1.2'
+    id 'java'
+}
+
+group "me.vlod"
+version "1.0"
+
+repositories {
+    mavenCentral()
+    gradlePluginPortal()
+}
+
+dependencies {
+    implementation "org.json:json:20220320"
+	implementation 'commons-io:commons-io:2.11.0'
+	implementation 'org.apache.commons:commons-lang3:3.12.0'
+	implementation 'org.yaml:snakeyaml:1.33'
+}
+
+java {
+    sourceCompatibility JavaVersion.VERSION_1_8
+    targetCompatibility JavaVersion.VERSION_1_8
+    withSourcesJar()
+}
+
+jar {
+    manifest {
+        attributes("Main-Class": "me.vlod.pinto.PintoServer")
+    }
+}

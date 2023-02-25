@@ -1,0 +1,6 @@
+listenIP: 0.0.0.0
+serverMOTD: Welcome to my exciting Pinto! server! Have fun! :D
+useWhiteList: false
+autoMute: true
+serverName: My Pinto! server
+listenPort: 2407
