@@ -36,7 +36,7 @@ public class PintoServer implements Runnable {
 	public ConsoleHandler consoleHandler;
 	public ServerSocket serverSocket;
 	public final ArrayList<NetworkHandler> clients = new ArrayList<NetworkHandler>();
-	public ArrayList<String> typingUsers = new ArrayList<String>();
+	public ArrayList<String> typingUsers = new ArrayList<String>();	
 	
 	static {
 		// Logger setup
