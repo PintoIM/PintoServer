@@ -1,6 +1,5 @@
 package me.vlod.pinto.networking;
 
-import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -79,7 +78,7 @@ public class NetworkClient {
     public void sendPacket(Packet packet) {
     	try {
     		if (!this.isConnected) return;
-    		this.outputStream.write(packet.getID());
+    		this.outputStream.write((byte)packet.getID());
 			packet.write(this.outputStream);
 			this.outputStream.flush();
 		} catch (Exception ex) {
@@ -87,16 +86,6 @@ public class NetworkClient {
 		}
     }
 
-    public void sendData(byte[] data) {
-    	try {
-    		if (!this.isConnected) return;
-			this.outputStream.write(data);
-			this.outputStream.flush();
-		} catch (Exception ex) {
-			PintoServer.logger.throwable(ex);
-		}
-    }
-    
     private void readThread_Func() {
     	while (this.isConnected) {
     		try {
@@ -105,20 +94,7 @@ public class NetworkClient {
 				
 				if (packetID != -1) {
 					if (packet != null) {
-	                    int packetSize = packet.getLength();
-	                    byte[] buffer = new byte[packetSize];
-
-	                    int readBytesTotal = 0;
-	                    int readBytes = readBytesTotal = this.inputStream.read(buffer, 0, packetSize);
-
-	                    while (readBytesTotal < packetSize) {
-	                        readBytes = this.inputStream.read(buffer, readBytesTotal, packetSize - readBytesTotal);
-	                        readBytesTotal += readBytes;
-	                    }
-	                    
-	                    DataInputStream bufferStream = new DataInputStream(new ByteArrayInputStream(buffer));
-	                    packet.read(bufferStream);
-	                    bufferStream.close();
+	                    packet.read(this.inputStream);
 	                    this.receivedPacket.call(packet);
 					} else {
 						throw new SocketException("Received invalid packet -> " + packetID);

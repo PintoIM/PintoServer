@@ -6,36 +6,31 @@ import java.io.IOException;
 
 import me.vlod.pinto.Utils;
 
-public class PacketLogin implements Packet {
-    public byte protocolVersion;
+public class PacketRegister implements Packet {
     public String name;
     public String passwordHash;
 	
-    public PacketLogin() { }
+    public PacketRegister() { }
     
-    public PacketLogin(byte protocolVersion, 
-    		String name, String passwordHash) {
-    	this.protocolVersion = protocolVersion;
+    public PacketRegister(String name, String passwordHash) {
     	this.name = name;
     	this.passwordHash = passwordHash;
     }
     
 	@Override
 	public void read(DataInputStream stream) throws IOException {
-		this.protocolVersion = (byte) stream.read();
 		this.name = Utils.readUTF8StringFromStream(stream);
 		this.passwordHash = Utils.readUTF8StringFromStream(stream);
 	}
 	
 	@Override
 	public void write(DataOutputStream stream) throws IOException {
-		stream.write(this.protocolVersion);
 		Utils.writeUTF8StringToStream(stream, this.name);
 		Utils.writeUTF8StringToStream(stream, this.passwordHash);
 	}
 
 	@Override
 	public int getID() {
-		return 0;
+		return 1;
 	}
 }

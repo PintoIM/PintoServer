@@ -8,6 +8,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Scanner;
 
@@ -25,9 +26,11 @@ import me.vlod.pinto.networking.NetworkAddress;
 import me.vlod.pinto.networking.NetworkClient;
 import me.vlod.pinto.networking.NetworkHandler;
 import me.vlod.pinto.networking.Packet;
-import me.vlod.pinto.networking.PacketMessage;
+import me.vlod.sql.SQLInterface;
+import me.vlod.sql.SQLiteInterface;
 
 public class PintoServer implements Runnable {
+	public static final String TABLE_NAME = "pinto";
 	public static PintoServer instance;
 	public static Logger logger;
 	public boolean running;
@@ -36,7 +39,7 @@ public class PintoServer implements Runnable {
 	public ConsoleHandler consoleHandler;
 	public ServerSocket serverSocket;
 	public final ArrayList<NetworkHandler> clients = new ArrayList<NetworkHandler>();
-	public ArrayList<String> typingUsers = new ArrayList<String>();	
+	public SQLInterface database;
 	
 	static {
 		// Logger setup
@@ -77,6 +80,19 @@ public class PintoServer implements Runnable {
 			// Load configuration
 			logger.info("Loading configuration...");
 			this.initConfig();
+			
+			// Load database
+			logger.info("Loading database...");
+			this.database = new SQLiteInterface("pintoserver.db");
+			
+			if (!this.database.doesTableExist(TABLE_NAME)) {
+				LinkedHashMap<String, String> columns = new LinkedHashMap<String, String>();
+				columns.put("name", "varchar(16)");
+				columns.put("passwordhash", "varchar(32)");
+				columns.put("laststatus", "int");
+				columns.put("contacts", "text");
+				this.database.createTable(TABLE_NAME, columns);
+			}
 			
 			// Initialization
 			logger.info("Initializing...");
@@ -249,17 +265,14 @@ public class PintoServer implements Runnable {
 			// If so, handle it
 			this.consoleHandler.handleInput(input.replaceFirst("/", ""));
 		} else {
-			// If not, send the input to everyone
-			this.sendGlobalMessage("Console > " + input);
+			logger.error("Global messages have been removed");
 		}
 	}
 	
 	public void banUser(String target, String reason, boolean ip) {
 		if (ip) {
 			BannedConfig.instance.ips.put(target, reason);
-			
 			PintoServer.logger.log("Moderation", "Banned the IP \"" + target + "\" for \"" + reason + "\"");
-			this.sendGlobalMessage("[Moderation] Banned an IP for \"" + reason + "\"", NetworkAddress.console);
 			
 			NetworkHandler[] handlers = this.getHandlersByAddress(target);
 			for (NetworkHandler handler : handlers) {
@@ -267,10 +280,7 @@ public class PintoServer implements Runnable {
 			}
 		} else {
 			BannedConfig.instance.users.put(target, reason);
-			
 			PintoServer.logger.log("Moderation", "Banned the user \"" + target + "\" for \"" + reason + "\"");
-			this.sendGlobalMessage("[Moderation] Banned the user \"" + target + "\" for \"" + reason + "\"", 
-					NetworkAddress.console);
 			
 			NetworkHandler handler = this.getHandlerByName(target);
 			if (handler != null) {
@@ -285,12 +295,9 @@ public class PintoServer implements Runnable {
 		if (ip) {
 			BannedConfig.instance.ips.remove(target);
 			PintoServer.logger.log("Moderation", "Unbanned the IP \"" + target + "\"");
-			this.sendGlobalMessage("[Moderation] Unbanned an IP", NetworkAddress.console);
 		} else {
 			BannedConfig.instance.users.remove(target);
 			PintoServer.logger.log("Moderation", "Unbanned the user \"" + target + "\"");
-			this.sendGlobalMessage("[Moderation] Unbanned the user \"" + target + "\"", 
-					NetworkAddress.console);
 		}
 		this.saveConfig();
 	}
@@ -299,12 +306,9 @@ public class PintoServer implements Runnable {
 		if (ip) {
 			MutedConfig.instance.ips.put(target, reason);
 			PintoServer.logger.log("Moderation", "Muted the IP \"" + target + "\" for \"" + reason + "\"");
-			this.sendGlobalMessage("[Moderation] Muted an IP for \"" + reason + "\"", NetworkAddress.console);
 		} else {
 			MutedConfig.instance.users.put(target, reason);
 			PintoServer.logger.log("Moderation", "Muted the user \"" + target + "\" for \"" + reason + "\"");
-			this.sendGlobalMessage("[Moderation] Muted the user \"" + target + "\" for \"" + reason + "\"",
-					NetworkAddress.console);
 		}
 		this.saveConfig();
 	}
@@ -313,34 +317,11 @@ public class PintoServer implements Runnable {
 		if (ip) {
 			MutedConfig.instance.ips.remove(target);
 			PintoServer.logger.log("Moderation", "Unmuted the IP \"" + target + "\"");
-			this.sendGlobalMessage("[Moderation] Unmuted an IP", NetworkAddress.console);
 		} else {
 			MutedConfig.instance.users.remove(target);
 			PintoServer.logger.log("Moderation", "Unmuted the user \"" + target + "\"");
-			this.sendGlobalMessage("[Moderation] Unmuted the user \"" + target + "\"", 
-					NetworkAddress.console);
 		}
 		this.saveConfig();
-	}
-	
-	public void addUserToTypingList(String user) {
-		if (!this.typingUsers.contains(user)) {
-			this.typingUsers.add(user);
-			this.syncTypingList();
-		}
-	}
-	
-	public void removeUserFromTypingList(String user) {
-		if (this.typingUsers.contains(user)) {
-			this.typingUsers.remove(user);
-			this.syncTypingList();
-		}
-	}
-	
-	public void syncTypingList() {
-		for (NetworkHandler handler : this.clients.toArray(new NetworkHandler[0])) {
-			handler.syncTypingList(this.typingUsers);
-		}
 	}
 	
 	public NetworkHandler getHandlerByName(String name) {
@@ -385,14 +366,7 @@ public class PintoServer implements Runnable {
 			handler.networkClient.sendPacket(packet);
 		}
 	}
-	
-	public void sendGlobalMessage(String message, NetworkAddress... exclusionList) {
-		this.sendGlobalPacket(new PacketMessage((byte)255, message), exclusionList);
-		if (!Arrays.asList(exclusionList).contains(NetworkAddress.console)) {
-			logger.info(message);
-		}
-	}
-	
+
 	public void disconnectAllClients(String reason, NetworkAddress... exclusionList) {
 		List<NetworkAddress> exclusionListAsList = Arrays.asList(exclusionList);
 		for (NetworkHandler handler : this.clients.toArray(new NetworkHandler[0])) {

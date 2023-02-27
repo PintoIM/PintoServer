@@ -6,27 +6,27 @@ import java.io.IOException;
 
 import me.vlod.pinto.Utils;
 
-public class PacketTyping implements Packet {
-    public String usernames;
-	
-    public PacketTyping() { }
+public class PacketRemoveContact implements Packet {
+    public String contactName;
+
+    public PacketRemoveContact() { }
     
-    public PacketTyping(String usernames) {
-    	this.usernames = usernames;
+    public PacketRemoveContact(String contactName) {
+    	this.contactName = contactName;
     }
     
 	@Override
 	public void read(DataInputStream stream) throws IOException {
-		this.usernames = Utils.readUTF8StringFromStream(stream);
+		this.contactName = Utils.readUTF8StringFromStream(stream);
 	}
 	
 	@Override
 	public void write(DataOutputStream stream) throws IOException {
-		Utils.writeUTF8StringToStream(stream, this.usernames);
+		Utils.writeUTF8StringToStream(stream, this.contactName);
 	}
 
 	@Override
 	public int getID() {
-		return 4;
+		return 7;
 	}
 }

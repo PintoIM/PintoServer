@@ -9,9 +9,14 @@ public class Packets {
 
     static {
     	packetMap.put(0, PacketLogin.class);
-    	packetMap.put(1, PacketLogout.class);
-    	packetMap.put(2, PacketMessage.class);
-    	packetMap.put(3, PacketTyping.class);
+    	packetMap.put(1, PacketRegister.class);
+    	packetMap.put(2, PacketLogout.class);
+    	packetMap.put(3, PacketMessage.class);
+    	packetMap.put(4, PacketTyping.class);
+    	packetMap.put(5, PacketInWindowPopup.class);
+    	packetMap.put(6, PacketAddContact.class);
+    	packetMap.put(7, PacketRemoveContact.class);
+    	packetMap.put(8, PacketStatus.class);
     }
 
     public static Packet getPacketByID(int id) {

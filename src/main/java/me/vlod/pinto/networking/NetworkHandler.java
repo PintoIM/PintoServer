@@ -1,46 +1,28 @@
 package me.vlod.pinto.networking;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 
 import me.vlod.pinto.Delegate;
 import me.vlod.pinto.PintoServer;
-import me.vlod.pinto.Utils;
+import me.vlod.pinto.UserStatus;
 import me.vlod.pinto.configuration.BannedConfig;
 import me.vlod.pinto.configuration.MainConfig;
-import me.vlod.pinto.configuration.MutedConfig;
-import me.vlod.pinto.configuration.OperatorConfig;
 import me.vlod.pinto.configuration.WhitelistConfig;
 import me.vlod.pinto.consolehandler.ConsoleCaller;
 import me.vlod.pinto.consolehandler.ConsoleHandler;
 
 public class NetworkHandler {
-	public static final String[] illegalUsernames = new String[] {
-			"system",
-			"admin",
-			"administrator",
-			"staff",
-			"console",
-			"owner",
-			"servermanager",
-			"manager",
-			"boss",
-			"moderation",
-			"pinto",
-			"support",
-			"officialpinto",
-			"pintoofficial"
-	};
 	private PintoServer server;
 	public NetworkAddress networkAddress;
 	public NetworkClient networkClient;
 	public ConsoleHandler consoleHandler;
 	public int noLoginKickTicks;
-	public int autoMuteTicks;
-	public int autoUnmuteTicks;
-	public int amountOfChattingBeforeCooldownReset;
 	public byte protocolVersion;
+	public boolean loggedIn;
 	public String userName;
+	public String passwordHash;
+	public UserStatus status;
+	public String[] contacts;
 	
 	public NetworkHandler(PintoServer server, NetworkAddress address, NetworkClient client) {
 		this.server = server;
@@ -71,52 +53,55 @@ public class NetworkHandler {
 	
 	private void onDisconnect(String reason) {
 		this.server.clients.remove(this);
-		if (this.userName != null) {
-			// Remove this user from the typing list
-			this.server.removeUserFromTypingList(this.userName);
-			this.server.sendGlobalMessage(this.userName + " has left");
-		}
 		PintoServer.logger.info(this.networkAddress + " has disconnected: " + reason);
 	}
 	
 	public void onTick() {
 		this.noLoginKickTicks++;
-		if (MainConfig.instance.autoMute) {
-			this.autoMuteTicks++;
-			this.autoUnmuteTicks++;	
-		} else {
-			this.autoMuteTicks = 0;
-			this.autoUnmuteTicks = 0;
-			this.amountOfChattingBeforeCooldownReset = 0;
-		}
-		
+
 		if (this.noLoginKickTicks > 10 && this.userName == null) {
 			this.kick("No login packet received in an acceptable time frame!");
 			return;
 		}
+	}
 
-		if (MainConfig.instance.autoMute && this.autoMuteTicks >= 3) {
-			if (this.amountOfChattingBeforeCooldownReset <= 3) {
-				this.amountOfChattingBeforeCooldownReset = 0;
-			} else {
-				this.server.muteUser(this.userName, "You are chatting too much!"
-						+ " You will be unmuted in 15 seconds!", false);
-				this.amountOfChattingBeforeCooldownReset = 0;
-				this.autoUnmuteTicks = 0;
-			}
-			this.autoMuteTicks = 0;
+	private String getDatabaseSelector() {
+		return String.format("name = \"%s\"", this.userName);
+	}
+	
+	private void setDatabaseEntry() {
+		String contactsEncoded = "";
+		for (String contact : this.contacts) {
+			contactsEncoded += String.format("%s:", contact);
 		}
+		contactsEncoded = contactsEncoded.substring(0, contactsEncoded.length() - 1);
 		
-		String mutedReason = MutedConfig.instance.users.get(this.userName);
-		if (MainConfig.instance.autoMute && this.autoUnmuteTicks >= 15 &&
-			mutedReason != null && 
-			mutedReason.equals("You are chatting too much! You will be unmuted in 15 seconds!")) {
-			this.server.unmuteUser(this.userName, false);
+		try {
+			this.server.database.changeRows(PintoServer.TABLE_NAME, this.getDatabaseSelector(), 
+					new String[] { 
+							"name", 
+							"passwordHash",
+							"laststatus",
+							"contacts"
+					}, 
+					new String[] { 
+							String.format("\"%s\"", this.userName),
+							String.format("\"%s\"", this.passwordHash),
+							"" + this.status.ordinal(),
+							String.format("\"%s\"", contactsEncoded)
+					});
+		} catch (Exception ex) {
+			ex.printStackTrace();
 		}
 	}
 	
-	public void sendMessage(String message) {
-		this.networkClient.sendPacket(new PacketMessage((byte)255, message));
+	private void loadDatabaseEntry() {
+		try {
+			String[] row = this.server.database.getRows(
+					PintoServer.TABLE_NAME, this.getDatabaseSelector()).get(0);
+		} catch (Exception ex) {
+			ex.printStackTrace();
+		}
 	}
 	
     public void kick(String reason) {
@@ -125,31 +110,28 @@ public class NetworkHandler {
     	this.networkClient.sendPacket(new PacketLogout(reason));
     	this.networkClient.disconnect("Kicked -> " + reason);
     }
-	
-    public void syncTypingList(ArrayList<String> typingUsers) {
-		String typingUsersStr = "";
-
-		for (String user : typingUsers.toArray(new String[0])) {
-			if (!user.equals(this.userName)) {
-				typingUsersStr += user + ", ";
-			}
-		}
-		
-		typingUsersStr = Utils.replaceLast(typingUsersStr, ",", "").trim();
-		this.networkClient.sendPacket(new PacketTyping(typingUsersStr));
-    }
     
 	public void handlePacket(Packet packet) {
-        if (packet.getID() == 0) {
-        	this.handleLoginPacket((PacketLogin)packet);
-        } else if (packet.getID() == 2) {
-            this.handleMessagePacket((PacketMessage)packet);
-        } else if (packet.getID() == 3) {
-        	this.handleTypingPacket((PacketTyping)packet);
-        }
+		switch (packet.getID()) {
+		case 0:
+			this.handleLoginPacket((PacketLogin)packet);
+			break;
+		case 3:
+			this.handleMessagePacket((PacketMessage)packet);
+			break;
+		case 6:
+			this.handleAddContactPacket((PacketAddContact)packet);
+			break;
+		case 7:
+			this.handleRemoveContactPacket((PacketRemoveContact)packet);
+			break;
+		case 8:
+			this.handleStatusPacket((PacketStatus)packet);
+			break;
+		}
 	}
-	
-    private void handleLoginPacket(PacketLogin packet) {
+
+	private void handleLoginPacket(PacketLogin packet) {
     	// Check if either the user name or IP are not white-listed
     	if (MainConfig.instance.useWhiteList && 
     		!WhitelistConfig.instance.ips.contains(this.networkAddress.ip) &&
@@ -184,9 +166,7 @@ public class NetworkHandler {
     	}
     	
     	// Check if the user name is legal
-    	if (!packet.name.matches("^(?=.{3,15}$)[a-z0-9._]+$") || 
-    		Arrays.asList(illegalUsernames).contains(packet.name.toLowerCase()
-    				.replace("_", "").replace(".", ""))) {
+    	if (!packet.name.matches("^(?=.{3,15}$)[a-z0-9._]+$")) {
     		this.kick("Illegal username!\n"
     				+ "Legal usernames must have a length of at least 3 and at most 16\n"
     				+ "Legal usernames may only contain lowercase alphanumeric characters, underscores and dots");
@@ -194,54 +174,42 @@ public class NetworkHandler {
     	}
     	this.userName = packet.name;
 
-    	// Send the MOTD packet
-    	this.networkClient.sendPacket(new PacketLogin(this.protocolVersion, 
-    			MainConfig.instance.serverName, MainConfig.instance.serverMOTD));
-    	// Send the joined message
-    	this.server.sendGlobalMessage(this.userName + " has joined");
+    	// Check if the client is registered
+    	boolean noSQLEntry = false;
+    	try {
+			if (this.server.database.getRows(PintoServer.TABLE_NAME, 
+					String.format("name = \"%s\"", this.userName)).size() < 1) {
+				noSQLEntry = true;
+			}
+		} catch (Exception ex) {
+			noSQLEntry = true;
+			// TODO: Proper SQL error handler
+			PintoServer.logger.throwable(ex);
+		}
     	
-    	// Synchronize typing list
-    	this.syncTypingList(this.server.typingUsers);
+    	if (noSQLEntry) {
+    		// :troll:
+    		this.kick("This account doesn't exist! Please fuck one and try again.");
+    		return;
+    	}
+    	
+    	// Load the database entry
+    	this.loadDatabaseEntry();
+    	// Mark the client as logged in
+    	this.loggedIn = true;
+    	// Send the login packet to let the client know they have logged in
+    	this.networkClient.sendPacket(new PacketLogin(this.protocolVersion, "", ""));
     }
 
     private void handleMessagePacket(PacketMessage packet) {
-    	boolean isOperator = OperatorConfig.instance.users.contains(this.userName);
-    	
-    	// Check if the message is a command
-		if (packet.message.startsWith("/")) {
-			// If so, attempt to handle it
-			if (isOperator) {
-				PintoServer.logger.info(this.userName + " used " + packet.message);
-				this.consoleHandler.handleInput(packet.message.replaceFirst("/", ""));
-			} else {
-				this.sendMessage("Only operators and the console may use commands!");
-			}
-		} else {
-			// If not, attempt to send the message to everyone
-			String mutedReason = MutedConfig.instance.users.get(this.userName);
-			String mutedReasonIP = MutedConfig.instance.ips.get(this.networkAddress.ip); 
-			
-			// Prefer user name mute
-			if (mutedReason != null) {
-				this.sendMessage("You are muted in this chat!");
-				this.sendMessage("Reason: " + mutedReason);
-			} else if (mutedReasonIP != null) {
-				this.sendMessage("You are muted in this chat based on your IP address!");
-				this.sendMessage("Reason: " + mutedReasonIP);
-			} else {
-				this.server.sendGlobalMessage((isOperator ? "*" : "") + this.userName + " > " + packet.message);
-				if (MainConfig.instance.autoMute) {
-					this.amountOfChattingBeforeCooldownReset++;
-				}
-			}
-		}
     }
     
-    private void handleTypingPacket(PacketTyping packet) {
-    	if (packet.usernames.length() > 0) {
-    		this.server.addUserToTypingList(userName);
-    	} else {
-    		this.server.removeUserFromTypingList(userName);
-    	}
-    }
+	private void handleAddContactPacket(PacketAddContact packet) {
+	}
+    
+	private void handleRemoveContactPacket(PacketRemoveContact packet) {
+	}
+	
+    private void handleStatusPacket(PacketStatus packet) {
+	}
 }

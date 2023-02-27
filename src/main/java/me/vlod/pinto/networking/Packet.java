@@ -8,5 +8,4 @@ public interface Packet {
 	public void read(DataInputStream stream) throws IOException;
     public void write(DataOutputStream stream) throws IOException;
     public int getID();
-    public int getLength();
 }

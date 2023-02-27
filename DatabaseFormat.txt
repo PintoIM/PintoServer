@@ -1,0 +1,4 @@
+name	
+passwordhash
+laststatus
+contacts (username:username2:username3 etc...)

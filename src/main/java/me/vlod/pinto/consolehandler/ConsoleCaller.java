@@ -14,7 +14,7 @@ public class ConsoleCaller {
 	
 	public void sendMessage(String message) {
 		if (this.isClient) {
-			this.client.sendMessage(message);
+			// TODO: Client command handler
 		} else {
 			PintoServer.logger.info(message);
 		}
