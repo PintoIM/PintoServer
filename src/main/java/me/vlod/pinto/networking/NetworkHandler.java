@@ -72,7 +72,7 @@ public class NetworkHandler {
 	private void setDatabaseEntry() {
 		String contactsEncoded = "";
 		for (String contact : this.contacts) {
-			contactsEncoded += String.format("%s:", contact);
+			contactsEncoded += String.format("%s,", contact);
 		}
 		contactsEncoded = contactsEncoded.substring(0, contactsEncoded.length() - 1);
 		
@@ -99,6 +99,15 @@ public class NetworkHandler {
 		try {
 			String[] row = this.server.database.getRows(
 					PintoServer.TABLE_NAME, this.getDatabaseSelector()).get(0);
+			
+			this.passwordHash = row[1];
+			this.status = UserStatus.values()[Integer.valueOf(row[2])];
+			
+			ArrayList<String> contacts = new ArrayList<String>();
+			for (String contact : row[3].split(",")) {
+				contacts.add(contact);
+			}
+			this.contacts = contacts.toArray(new String[0]);
 		} catch (Exception ex) {
 			ex.printStackTrace();
 		}
@@ -195,6 +204,12 @@ public class NetworkHandler {
     	
     	// Load the database entry
     	this.loadDatabaseEntry();
+    	
+    	if (!this.passwordHash.equalsIgnoreCase(packet.passwordHash)) {
+    		this.kick("Invalid password!");
+    		return;
+    	}
+
     	// Mark the client as logged in
     	this.loggedIn = true;
     	// Send the login packet to let the client know they have logged in
