@@ -243,5 +243,6 @@ gradle-app.setting
 *.hprof
 
 
-### Settings ###
+### On server run generated files ###
 *.yml
+*.db
