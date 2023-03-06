@@ -28,7 +28,7 @@ public class Packets {
         	// Check if the specified class implements Packet
         	if (Packet.class.isAssignableFrom(packetClass)) {
         		try {
-					return (Packet)packetClass.newInstance();
+					return (Packet)packetClass.getDeclaredConstructor().newInstance();
 				} catch (Exception ex) {
 					// Failure?
 					PintoServer.logger.throwable(ex);

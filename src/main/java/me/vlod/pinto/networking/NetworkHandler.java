@@ -22,7 +22,7 @@ public class NetworkHandler {
 	public String userName;
 	public String passwordHash;
 	public UserStatus status;
-	public String[] contacts;
+	public ArrayList<String> contacts = new ArrayList<String>();
 	
 	public NetworkHandler(PintoServer server, NetworkAddress address, NetworkClient client) {
 		this.server = server;
@@ -52,6 +52,7 @@ public class NetworkHandler {
 	}
 	
 	private void onDisconnect(String reason) {
+		this.changeStatus(UserStatus.OFFLINE, true);
 		this.server.clients.remove(this);
 		PintoServer.logger.info(this.networkAddress + " has disconnected: " + reason);
 	}
@@ -88,7 +89,7 @@ public class NetworkHandler {
 					new String[] { 
 							String.format("\"%s\"", this.userName),
 							String.format("\"%s\"", this.passwordHash),
-							"" + this.status.ordinal(),
+							"" + this.status.getIndex(),
 							String.format("\"%s\"", contactsEncoded)
 					});
 		} catch (Exception ex) {
@@ -102,15 +103,30 @@ public class NetworkHandler {
 					PintoServer.TABLE_NAME, this.getDatabaseSelector()).get(0);
 			
 			this.passwordHash = row[1];
-			this.status = UserStatus.values()[Integer.valueOf(row[2])];
+			this.status = UserStatus.fromIndex(Integer.valueOf(row[2]));
 			
-			ArrayList<String> contacts = new ArrayList<String>();
-			for (String contact : row[3].split(",")) {
-				contacts.add(contact);
+			String contactsRaw = row[3];
+			
+			if (!contactsRaw.equalsIgnoreCase("null")) {
+				for (String contact : contactsRaw.split(",")) {
+					this.contacts.add(contact);
+				}
 			}
-			this.contacts = contacts.toArray(new String[0]);
 		} catch (Exception ex) {
 			ex.printStackTrace();
+		}
+	}
+	
+	private void performSync() {
+		this.networkClient.sendPacket(new PacketStatus("", this.status));
+		
+		for (String contact : this.contacts) {
+			NetworkHandler netHandler = this.server.getHandlerByName(contact);
+			this.networkClient.sendPacket(new PacketAddContact(contact));
+			if (netHandler != null) {
+				this.networkClient.sendPacket(new PacketStatus(contact, netHandler.status));
+				netHandler.networkClient.sendPacket(new PacketStatus(this.userName, this.status));
+			}
 		}
 	}
 	
@@ -119,6 +135,21 @@ public class NetworkHandler {
     			(this.userName != null ? " (" + this.userName + ")" : "") + ": " + reason);
     	this.networkClient.sendPacket(new PacketLogout(reason));
     	this.networkClient.disconnect("Kicked -> " + reason);
+    }
+    
+    public void changeStatus(UserStatus status, boolean noSelfUpdate) {
+    	this.status = status;
+    	if (!noSelfUpdate) {
+    		this.networkClient.sendPacket(new PacketStatus("", status));
+    		this.setDatabaseEntry();
+    	}
+
+		for (String contact : this.contacts) {
+			NetworkHandler netHandler = this.server.getHandlerByName(contact);
+			if (netHandler == null) continue;
+			netHandler.networkClient.sendPacket(new PacketStatus(this.userName, 
+					(this.status == UserStatus.INVISIBLE ? UserStatus.OFFLINE : this.status)));
+		}
     }
     
 	public void handlePacket(Packet packet) {
@@ -198,8 +229,7 @@ public class NetworkHandler {
 		}
     	
     	if (noSQLEntry) {
-    		// :troll:
-    		this.kick("This account doesn't exist! Please fuck one and try again.");
+    		this.kick("This account doesn't exist! Please create one and try again.");
     		return;
     	}
     	
@@ -213,11 +243,31 @@ public class NetworkHandler {
 
     	// Mark the client as logged in
     	this.loggedIn = true;
+    	
     	// Send the login packet to let the client know they have logged in
     	this.networkClient.sendPacket(new PacketLogin(this.protocolVersion, "", ""));
+    	
+    	// Sync the database to the user
+    	this.performSync();
     }
 
     private void handleMessagePacket(PacketMessage packet) {
+    	if (!this.contacts.contains(packet.contactName)) {
+    		this.kick("Protocol violation!");
+    		return;
+    	}
+    	
+		NetworkHandler netHandler = this.server.getHandlerByName(packet.contactName);
+		
+		if (netHandler == null || netHandler.status == UserStatus.INVISIBLE) {
+			this.networkClient.sendPacket(new PacketInWindowPopup(String.format(
+					"%s is offline and may not receive messages", packet.contactName)));
+			return;
+		}
+		
+		String message = String.format("%s: %s", this.userName, packet.message);
+		netHandler.networkClient.sendPacket(new PacketMessage(this.userName, message));
+		this.networkClient.sendPacket(new PacketMessage(packet.contactName, message));
     }
     
 	private void handleAddContactPacket(PacketAddContact packet) {
@@ -227,5 +277,10 @@ public class NetworkHandler {
 	}
 	
     private void handleStatusPacket(PacketStatus packet) {
+    	if (packet.status == UserStatus.OFFLINE) {
+    		this.kick("Protocol violation!");
+    		return;
+    	}
+    	this.changeStatus(packet.status, false);
 	}
 }

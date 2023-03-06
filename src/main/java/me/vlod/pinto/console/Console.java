@@ -24,6 +24,7 @@ import javax.swing.text.StyleContext;
 import me.vlod.pinto.Delegate;
 
 public class Console {
+	private boolean useWhiteText;
 	private JFrame frame;
 	private JTextPane txtContents;
 	private JScrollPane spContents;
@@ -33,6 +34,10 @@ public class Console {
 	public Delegate onClose;
 	public Delegate onSubmit;
 
+	public Console(boolean useWhiteText) {
+		this.useWhiteText = useWhiteText;
+	}
+	
 	private void init() {
 		GridBagConstraints gridBagContraints = new GridBagConstraints();
 		
@@ -56,7 +61,7 @@ public class Console {
 		this.pInput = new JPanel(new GridBagLayout());
 		this.txtInput = new JTextField();
 		this.btnSubmit = new JButton("Submit");
-		
+
 		this.txtContents.addKeyListener(new KeyAdapter() {
 	        @Override
 	        public void keyTyped(KeyEvent e) {
@@ -131,6 +136,10 @@ public class Console {
 	}
 	
 	public void write(String str, Color color, boolean newLine) {
+		if (this.useWhiteText && color == Color.black) {
+			color = Color.white;
+		}
+		
         StyleContext styleContext = StyleContext.getDefaultStyleContext();
         AttributeSet attributeSet = styleContext.addAttribute(
         		SimpleAttributeSet.EMPTY, StyleConstants.Foreground, color);

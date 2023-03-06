@@ -12,6 +12,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Scanner;
 
+import javax.swing.JOptionPane;
+import javax.swing.UIManager;
+
+import org.apache.commons.lang3.SystemUtils;
+
 import me.vlod.pinto.configuration.BannedConfig;
 import me.vlod.pinto.configuration.ConfigLoaderSaver;
 import me.vlod.pinto.configuration.MainConfig;
@@ -380,7 +385,32 @@ public class PintoServer implements Runnable {
 		
 		// Create the graphical console if we aren't in a headless environment
 		if (!GraphicsEnvironment.isHeadless()) {
-			pintoServer.console = new Console();
+			boolean useWhite = false;
+			
+			// TODO: Better implementation
+			if ((SystemUtils.IS_OS_WINDOWS || SystemUtils.IS_OS_LINUX || SystemUtils.IS_OS_MAC_OSX) && 
+					JOptionPane.YES_OPTION == JOptionPane.showConfirmDialog(null, "Do you want to use the system theme?", 
+						"PintoServer - Console - System theme usage confirmation", JOptionPane.YES_NO_OPTION)) {
+				try {
+					// Hack: Allow the system look and feel on JREs that do not report it correctly
+					if (SystemUtils.IS_OS_WINDOWS) {
+						UIManager.setLookAndFeel("com.sun.java.swing.plaf.windows.WindowsClassicLookAndFeel");
+					} else if (SystemUtils.IS_OS_LINUX) {
+						if (JOptionPane.YES_OPTION == JOptionPane.showConfirmDialog(null, 
+								"Do you want the text color to be white?", 
+								"PintoServer - Console - System theme usage confirmation", JOptionPane.YES_NO_OPTION)) {
+							useWhite = true;
+						}
+						UIManager.setLookAndFeel("com.sun.java.swing.plaf.gtk.GTKLookAndFeel");
+					} else if (SystemUtils.IS_OS_MAC_OSX) {
+						UIManager.setLookAndFeel("com.apple.laf.AquaLookAndFeel");
+					}
+				} catch (Exception ex) {
+					logger.throwable(ex);
+				}
+			}
+
+			pintoServer.console = new Console(useWhite);
 			pintoServer.console.onSubmit = new Delegate() {
 				@Override
 				public void call(Object... args) {
