@@ -69,6 +69,7 @@ public class NetworkHandler {
 		return String.format("name = \"%s\"", this.userName);
 	}
 	
+	@SuppressWarnings("unused")
 	private void setDatabaseEntry() {
 		String contactsEncoded = "";
 		for (String contact : this.contacts) {
