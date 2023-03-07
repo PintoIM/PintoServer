@@ -288,13 +288,7 @@ public class PintoServer implements Runnable {
 	}
 	
 	public void onConsoleSubmit(String input) {
-		// Check if the input is a command 
-		if (input.startsWith("/")) {
-			// If so, handle it
-			this.consoleHandler.handleInput(input.replaceFirst("/", ""));
-		} else {
-			logger.error("Global messages have been removed");
-		}
+		this.consoleHandler.handleInput(input);
 	}
 	
 	public void banUser(String target, String reason, boolean ip) {
