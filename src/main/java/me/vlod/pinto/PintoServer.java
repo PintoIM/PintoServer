@@ -12,11 +12,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Scanner;
 
-import javax.swing.JOptionPane;
-import javax.swing.UIManager;
-
-import org.apache.commons.lang3.SystemUtils;
-
 import me.vlod.pinto.configuration.BannedConfig;
 import me.vlod.pinto.configuration.ConfigLoaderSaver;
 import me.vlod.pinto.configuration.MainConfig;
@@ -130,7 +125,14 @@ public class PintoServer implements Runnable {
 
 			if (this.console != null) {
 				// Loop forever to allow the user to read the logs
-				while (true) {}
+				while (true) {
+					// Make the loop sleep to prevent high CPU usage
+		    		try {
+						Thread.sleep(1);
+					} catch (Exception ex) {
+						PintoServer.logger.throwable(ex);
+					}
+				}
 			} else {
 				this.stop();
 				return;
@@ -138,7 +140,7 @@ public class PintoServer implements Runnable {
 		}
 		
 		// Network accept thread
-		new Thread() {
+		new Thread("Network accept thread") {
 			public void run() {
 				while (running) {
 					try {
@@ -146,6 +148,13 @@ public class PintoServer implements Runnable {
 						NetworkAddress address = new NetworkAddress(socket);
 						NetworkClient client = new NetworkClient(socket);
 						clients.add(new NetworkHandler(PintoServer.instance, address, client));
+						
+						// Make the loop sleep to prevent high CPU usage
+			    		try {
+							Thread.sleep(1);
+						} catch (Exception ex) {
+							PintoServer.logger.throwable(ex);
+						}
 					} catch (Exception ex) {
 						if (running) {
 							logger.throwable(ex);
@@ -156,7 +165,7 @@ public class PintoServer implements Runnable {
 		}.start();
 		
 		// Tick thread
-		new Thread() {
+		new Thread("Tick thread") {
 			public void run() {
 				long lastTime = 0;
 				
@@ -173,6 +182,13 @@ public class PintoServer implements Runnable {
 						}
 						lastTime = System.currentTimeMillis();
 					}
+					
+					// Make the loop sleep to prevent high CPU usage
+		    		try {
+						Thread.sleep(1);
+					} catch (Exception ex) {
+						PintoServer.logger.throwable(ex);
+					}
 				}
 			}
 		}.start();
@@ -183,6 +199,13 @@ public class PintoServer implements Runnable {
 			if (this.cliScanner != null) {
 				String cliInput = this.cliScanner.nextLine();
 				this.onConsoleSubmit(cliInput);	
+			}
+			
+			// Make the loop sleep to prevent high CPU usage
+    		try {
+				Thread.sleep(1);
+			} catch (Exception ex) {
+				PintoServer.logger.throwable(ex);
 			}
 		}
 	}
@@ -368,7 +391,7 @@ public class PintoServer implements Runnable {
 		List<NetworkAddress> exclusionListAsList = Arrays.asList(exclusionList);
 		for (NetworkHandler handler : this.clients.toArray(new NetworkHandler[0])) {
 			if (exclusionListAsList.contains(handler.networkAddress)) continue;
-			handler.networkClient.sendPacket(packet);
+			handler.networkClient.addToSendQueue(packet);
 		}
 	}
 
@@ -385,8 +408,7 @@ public class PintoServer implements Runnable {
 		
 		// Create the graphical console if we aren't in a headless environment
 		if (!GraphicsEnvironment.isHeadless()) {
-			boolean useWhite = false;
-			
+			/*
 			// TODO: Better implementation
 			if ((SystemUtils.IS_OS_WINDOWS || SystemUtils.IS_OS_LINUX || SystemUtils.IS_OS_MAC_OSX) && 
 					JOptionPane.YES_OPTION == JOptionPane.showConfirmDialog(null, "Do you want to use the system theme?", 
@@ -396,11 +418,6 @@ public class PintoServer implements Runnable {
 					if (SystemUtils.IS_OS_WINDOWS) {
 						UIManager.setLookAndFeel("com.sun.java.swing.plaf.windows.WindowsClassicLookAndFeel");
 					} else if (SystemUtils.IS_OS_LINUX) {
-						if (JOptionPane.YES_OPTION == JOptionPane.showConfirmDialog(null, 
-								"Do you want the text color to be white?", 
-								"PintoServer - Console - System theme usage confirmation", JOptionPane.YES_NO_OPTION)) {
-							useWhite = true;
-						}
 						UIManager.setLookAndFeel("com.sun.java.swing.plaf.gtk.GTKLookAndFeel");
 					} else if (SystemUtils.IS_OS_MAC_OSX) {
 						UIManager.setLookAndFeel("com.apple.laf.AquaLookAndFeel");
@@ -408,9 +425,9 @@ public class PintoServer implements Runnable {
 				} catch (Exception ex) {
 					logger.throwable(ex);
 				}
-			}
+			}*/
 
-			pintoServer.console = new Console(useWhite);
+			pintoServer.console = new Console();
 			pintoServer.console.onSubmit = new Delegate() {
 				@Override
 				public void call(Object... args) {
@@ -426,6 +443,6 @@ public class PintoServer implements Runnable {
 			pintoServer.console.show();
 		}
 
-		(new Thread(PintoServer.instance = pintoServer)).start();
+		(new Thread(PintoServer.instance = pintoServer, "PintoServer main thread")).start();
 	}
 }

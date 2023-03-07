@@ -5,6 +5,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketException;
+import java.util.LinkedList;
 
 import me.vlod.pinto.Delegate;
 import me.vlod.pinto.PintoServer;
@@ -16,8 +17,10 @@ public class NetworkClient {
     private DataInputStream inputStream;
     private DataOutputStream outputStream;
     private Thread readThread;
+    private Thread sendThread;
     public Delegate disconnected = Delegate.empty;
     public Delegate receivedPacket = Delegate.empty;
+    private LinkedList<Packet> packetSendQueue = new LinkedList<Packet>();
     
     public NetworkClient(Socket socket) {
         try {
@@ -27,13 +30,21 @@ public class NetworkClient {
             this.inputStream = new DataInputStream(this.socket.getInputStream());
             this.outputStream = new DataOutputStream(this.socket.getOutputStream());
             
-            this.readThread = new Thread() {
+            this.readThread = new Thread("Client read thread") {
             	@Override
             	public void run() {
             		readThread_Func();
             	}
             };
             this.readThread.start();
+            
+            this.sendThread = new Thread("Client send thread") {
+            	@Override
+            	public void run() {
+            		sendThread_Func();
+            	}
+            };
+            this.sendThread.start();
         } catch (Exception ex) {
             this.disconnect(null);
         }
@@ -68,6 +79,7 @@ public class NetworkClient {
         this.inputStream = null;
         this.outputStream = null;
         this.readThread = null;
+        this.sendThread = null;
 
         if (this.isConnected && !noDisconnectEventValue) {
             this.disconnected.call(reason);
@@ -75,17 +87,30 @@ public class NetworkClient {
         this.isConnected = false;
     }
 
-    public void sendPacket(Packet packet) {
-    	try {
-    		if (!this.isConnected) return;
-    		this.outputStream.write((byte)packet.getID());
-			packet.write(this.outputStream);
-			this.outputStream.flush();
-		} catch (Exception ex) {
-			PintoServer.logger.throwable(ex);
-		}
+    public void addToSendQueue(Packet packet) {
+    	if (!this.isConnected) return;
+    	this.packetSendQueue.add(packet);
     }
 
+    public void clearSendQueue() {
+    	this.packetSendQueue.clear();
+    }
+    
+    public void flushSendQueue() {
+    	if (!this.isConnected) return;
+    	for (Packet packet : this.packetSendQueue.toArray(new Packet[0])) {
+        	try {
+        		if (!this.isConnected) return;
+        		this.outputStream.write((byte)packet.getID());
+    			packet.write(this.outputStream);
+    			this.outputStream.flush();
+    		} catch (Exception ex) {
+    			PintoServer.logger.throwable(ex);
+    		}
+        	this.packetSendQueue.remove(packet);
+    	}
+    }
+    
     private void readThread_Func() {
     	while (this.isConnected) {
     		try {
@@ -102,6 +127,13 @@ public class NetworkClient {
 				} else {
 					throw new SocketException("Client disconnect");
     			}
+				
+				// Make the loop sleep to prevent high CPU usage
+	    		try {
+					Thread.sleep(1);
+				} catch (Exception ex) {
+					PintoServer.logger.throwable(ex);
+				}
     		} catch (Exception ex) {
                 if (!(ex instanceof IOException || ex instanceof SocketException)) {
                     this.disconnect("Internal error -> " + ex.getMessage());
@@ -111,6 +143,20 @@ public class NetworkClient {
                 }
                 return;
     		}
+    	}
+    }
+    
+    private void sendThread_Func() {
+    	while (this.isConnected) {
+    		this.flushSendQueue();
+    		
+			// Make the loop sleep to prevent high CPU usage
+    		// Also here to allow the send queue to work
+    		try {
+				Thread.sleep(1);
+			} catch (Exception ex) {
+				PintoServer.logger.throwable(ex);
+			}
     	}
     }
 }

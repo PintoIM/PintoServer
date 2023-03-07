@@ -12,20 +12,26 @@ import java.awt.event.WindowEvent;
 
 import javax.swing.JButton;
 import javax.swing.JFrame;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 import javax.swing.JTextPane;
+import javax.swing.KeyStroke;
 import javax.swing.text.AttributeSet;
 import javax.swing.text.SimpleAttributeSet;
 import javax.swing.text.StyleConstants;
 import javax.swing.text.StyleContext;
 
 import me.vlod.pinto.Delegate;
+import me.vlod.pinto.networking.NetworkHandler;
 
 public class Console {
-	private boolean useWhiteText;
 	private JFrame frame;
+	private JMenuBar menuBar;
 	private JTextPane txtContents;
 	private JScrollPane spContents;
 	private JPanel pInput;
@@ -33,10 +39,6 @@ public class Console {
 	private JButton btnSubmit;
 	public Delegate onClose;
 	public Delegate onSubmit;
-
-	public Console(boolean useWhiteText) {
-		this.useWhiteText = useWhiteText;
-	}
 	
 	private void init() {
 		GridBagConstraints gridBagContraints = new GridBagConstraints();
@@ -55,6 +57,7 @@ public class Console {
 		this.frame.setSize(800, 480);
 		this.frame.setLocationRelativeTo(null);
 		
+		this.menuBar = new JMenuBar();
 		this.txtContents = new JTextPane();
 		this.spContents = new JScrollPane(this.txtContents, 
 				JScrollPane.VERTICAL_SCROLLBAR_ALWAYS, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
@@ -96,6 +99,25 @@ public class Console {
 			}
 		});
 		
+		JMenu help = new JMenu("Help");
+		help.setMnemonic(KeyEvent.VK_H);
+		
+		JMenuItem helpAbout = new JMenuItem("About");
+		helpAbout.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_A, ActionEvent.ALT_MASK));
+		helpAbout.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				JOptionPane.showMessageDialog(null, 
+						String.format("PintoServer: Official server implementation for Pinto!\n"
+								+ "Protocol Version: %d\nApplication Version: v1.0", NetworkHandler.PROTOCOL_VERSION),
+						"Pinto! Server - About", JOptionPane.INFORMATION_MESSAGE | JOptionPane.OK_OPTION);
+			}
+		});
+		
+		help.add(helpAbout);
+		this.menuBar.add(help);
+		this.frame.setJMenuBar(this.menuBar);
+		
 		gridBagContraints.fill = GridBagConstraints.BOTH;
 		gridBagContraints.gridx = 0;
 		gridBagContraints.gridy = 0;
@@ -136,10 +158,6 @@ public class Console {
 	}
 	
 	public void write(String str, Color color, boolean newLine) {
-		if (this.useWhiteText && color == Color.black) {
-			color = Color.white;
-		}
-		
         StyleContext styleContext = StyleContext.getDefaultStyleContext();
         AttributeSet attributeSet = styleContext.addAttribute(
         		SimpleAttributeSet.EMPTY, StyleConstants.Foreground, color);
