@@ -17,6 +17,7 @@ public class Packets {
     	packetMap.put(6, PacketAddContact.class);
     	packetMap.put(7, PacketRemoveContact.class);
     	packetMap.put(8, PacketStatus.class);
+    	packetMap.put(9, PacketContactRequest.class);
     }
 
     public static Packet getPacketByID(int id) {

@@ -1,13 +1,9 @@
 package me.vlod.pinto.networking;
 
-import java.util.ArrayList;
-
 import me.vlod.pinto.Delegate;
 import me.vlod.pinto.PintoServer;
+import me.vlod.pinto.UserDatabaseEntry;
 import me.vlod.pinto.UserStatus;
-import me.vlod.pinto.configuration.BannedConfig;
-import me.vlod.pinto.configuration.MainConfig;
-import me.vlod.pinto.configuration.WhitelistConfig;
 import me.vlod.pinto.consolehandler.ConsoleCaller;
 import me.vlod.pinto.consolehandler.ConsoleHandler;
 
@@ -20,11 +16,9 @@ public class NetworkHandler {
 	public int noLoginKickTicks;
 	public byte protocolVersion;
 	public boolean loggedIn;
+	public UserDatabaseEntry databaseEntry;
 	public String userName;
-	public String passwordHash;
-	public UserStatus status;
-	public ArrayList<String> contacts = new ArrayList<String>();
-	
+
 	public NetworkHandler(PintoServer server, NetworkAddress address, NetworkClient client) {
 		this.server = server;
 		this.networkAddress = address;
@@ -67,66 +61,18 @@ public class NetworkHandler {
 		}
 	}
 
-	private String getDatabaseSelector() {
-		return String.format("name = \"%s\"", this.userName);
-	}
-	
-	@SuppressWarnings("unused")
-	private void setDatabaseEntry() {
-		String contactsEncoded = "";
-		for (String contact : this.contacts) {
-			contactsEncoded += String.format("%s,", contact);
-		}
-		contactsEncoded = contactsEncoded.substring(0, contactsEncoded.length() - 1);
-		
-		try {
-			this.server.database.changeRows(PintoServer.TABLE_NAME, this.getDatabaseSelector(), 
-					new String[] { 
-							"name", 
-							"passwordHash",
-							"laststatus",
-							"contacts"
-					}, 
-					new String[] { 
-							String.format("\"%s\"", this.userName),
-							String.format("\"%s\"", this.passwordHash),
-							"" + this.status.getIndex(),
-							String.format("\"%s\"", contactsEncoded)
-					});
-		} catch (Exception ex) {
-			ex.printStackTrace();
-		}
-	}
-	
-	private void loadDatabaseEntry() {
-		try {
-			String[] row = this.server.database.getRows(
-					PintoServer.TABLE_NAME, this.getDatabaseSelector()).get(0);
-			
-			this.passwordHash = row[1];
-			this.status = UserStatus.fromIndex(Integer.valueOf(row[2]));
-			
-			String contactsRaw = row[3];
-			
-			if (!contactsRaw.equalsIgnoreCase("null")) {
-				for (String contact : contactsRaw.split(",")) {
-					this.contacts.add(contact);
-				}
-			}
-		} catch (Exception ex) {
-			ex.printStackTrace();
-		}
-	}
-	
 	private void performSync() {
-		this.networkClient.addToSendQueue(new PacketStatus("", this.status));
-		
-		for (String contact : this.contacts) {
+		this.networkClient.addToSendQueue(new PacketClearContacts());
+		this.networkClient.addToSendQueue(new PacketStatus("", this.databaseEntry.status));
+
+		for (String contact : this.databaseEntry.contacts) {
 			NetworkHandler netHandler = this.server.getHandlerByName(contact);
 			this.networkClient.addToSendQueue(new PacketAddContact(contact));
+			
 			if (netHandler != null) {
-				this.networkClient.addToSendQueue(new PacketStatus(contact, netHandler.status));
-				netHandler.networkClient.addToSendQueue(new PacketStatus(this.userName, this.status));
+				this.networkClient.addToSendQueue(new PacketStatus(contact, 
+						NetHandlerUtils.getToOthersStatus(netHandler.databaseEntry.status)));
+				netHandler.networkClient.addToSendQueue(new PacketStatus(this.userName, this.databaseEntry.status));
 			}
 		}
 	}
@@ -141,17 +87,19 @@ public class NetworkHandler {
     }
     
     public void changeStatus(UserStatus status, boolean noSelfUpdate) {
-    	this.status = status;
+    	if (this.databaseEntry == null) return;
+    	
+    	this.databaseEntry.status = status;
     	if (!noSelfUpdate) {
     		this.networkClient.addToSendQueue(new PacketStatus("", status));
-    		this.setDatabaseEntry();
+    		this.databaseEntry.save();
     	}
 
-		for (String contact : this.contacts) {
+		for (String contact : this.databaseEntry.contacts) {
 			NetworkHandler netHandler = this.server.getHandlerByName(contact);
 			if (netHandler == null) continue;
-			netHandler.networkClient.addToSendQueue(new PacketStatus(this.userName, 
-					(this.status == UserStatus.INVISIBLE ? UserStatus.OFFLINE : this.status)));
+			netHandler.networkClient.addToSendQueue(new PacketStatus(this.userName,
+					NetHandlerUtils.getToOthersStatus(status)));
 		}
     }
     
@@ -159,6 +107,9 @@ public class NetworkHandler {
 		switch (packet.getID()) {
 		case 0:
 			this.handleLoginPacket((PacketLogin)packet);
+			break;
+		case 1:
+			this.handleRegisterPacket((PacketRegister)packet);
 			break;
 		case 3:
 			this.handleMessagePacket((PacketMessage)packet);
@@ -172,75 +123,37 @@ public class NetworkHandler {
 		case 8:
 			this.handleStatusPacket((PacketStatus)packet);
 			break;
+		case 9:
+			this.handleContactRequestPacket((PacketContactRequest)packet);
+			break;
 		}
 	}
 
 	private void handleLoginPacket(PacketLogin packet) {
-    	// Check if either the user name or IP are not white-listed
-    	if (MainConfig.instance.useWhiteList && 
-    		!WhitelistConfig.instance.ips.contains(this.networkAddress.ip) &&
-    		!WhitelistConfig.instance.users.contains(packet.name)) {
-    		this.kick("You are not white-listed!");
-    		return;
-    	}
-    	
-		String bannedReason = BannedConfig.instance.users.get(packet.name);
-		String bannedReasonIP = BannedConfig.instance.ips.get(this.networkAddress.ip);
-    	
-		// Check if either the user name or IP are banned
-    	if (bannedReason != null) {
-    		this.kick("You are banned from this chat!\nReason: " + bannedReason);
-    		return;
-    	} else if (bannedReasonIP != null) {
-    		this.kick("You are banned from this chat based on your IP address!\nReason: " + bannedReasonIP);
-    		return;
-    	}
+		NetHandlerUtils.performModerationChecks(this, packet.name);
+		NetHandlerUtils.performProtocolCheck(this, packet.protocolVersion);
+		NetHandlerUtils.performNameVerification(this, packet.name);
 		
-    	// Check if the client protocol is not PROTOCOL_VERSION
-    	if (packet.protocolVersion != PROTOCOL_VERSION) {
-    		this.kick(String.format("Illegal protocol version!\nMust be %d/, but got %d", 
-    				PROTOCOL_VERSION, packet.protocolVersion));
-    		return;
-    	}
-    	this.protocolVersion = packet.protocolVersion;
-    	
     	// Check if the user name is already used
     	if (this.server.getHandlerByName(packet.name) != null) {
     		this.kick("Someone with this username is already connected!");
     		return;
     	}
-    	
-    	// Check if the user name is legal
-    	if (!packet.name.matches("^(?=.{3,15}$)[a-z0-9._]+$")) {
-    		this.kick("Illegal username!\n"
-    				+ "Legal usernames must have a length of at least 3 and at most 16\n"
-    				+ "Legal usernames may only contain lowercase alphanumeric characters, underscores and dots");
-    		return;
-    	}
+
+    	this.protocolVersion = packet.protocolVersion;
     	this.userName = packet.name;
 
-    	// Check if the client is registered
-    	boolean noSQLEntry = false;
-    	try {
-			if (this.server.database.getRows(PintoServer.TABLE_NAME, 
-					String.format("name = \"%s\"", this.userName)).size() < 1) {
-				noSQLEntry = true;
-			}
-		} catch (Exception ex) {
-			noSQLEntry = true;
-			// TODO: Proper SQL error handler
-			PintoServer.logger.throwable(ex);
-		}
-    	
-    	if (noSQLEntry) {
+    	// Check if the client is not registered
+    	if (!UserDatabaseEntry.isRegistered(this.server, userName)) {
     		this.kick("This account doesn't exist! Please create one and try again.");
     		return;
     	}
     	
     	// Load the database entry
-    	this.loadDatabaseEntry();
+    	this.databaseEntry = new UserDatabaseEntry(this.server, this.userName);
+    	this.databaseEntry.load();
     	
-    	if (!this.passwordHash.equalsIgnoreCase(packet.passwordHash)) {
+    	if (!this.databaseEntry.passwordHash.equalsIgnoreCase(packet.passwordHash)) {
     		this.kick("Invalid password!");
     		return;
     	}
@@ -255,16 +168,37 @@ public class NetworkHandler {
     	this.performSync();
     }
 
+	private void handleRegisterPacket(PacketRegister packet) {
+		NetHandlerUtils.performModerationChecks(this, packet.name);
+		NetHandlerUtils.performNameVerification(this, packet.name);
+    	this.userName = packet.name;
+
+    	if (UserDatabaseEntry.isRegistered(this.server, userName)) {
+    		this.kick("This account already exists!");
+    		return;
+    	}
+    	
+    	// Create the database entry
+    	this.databaseEntry = UserDatabaseEntry.registerAndReturnEntry(this.server, packet.name,
+    			packet.passwordHash, UserStatus.ONLINE);
+    	
+    	// Mark the client as logged in
+    	this.loggedIn = true;
+    	
+    	// Send the login packet to let the client know they have logged in
+    	this.networkClient.addToSendQueue(new PacketLogin(this.protocolVersion, "", ""));
+    }
+	
     private void handleMessagePacket(PacketMessage packet) {
-    	if (!this.contacts.contains(packet.contactName)) {
-    		this.kick("Protocol violation!");
+    	if (!this.databaseEntry.contacts.contains(packet.contactName)) {
+			this.networkClient.addToSendQueue(new PacketMessage(packet.contactName, String.format(
+					"You may not send messages to %s", packet.contactName)));
     		return;
     	}
     	
 		NetworkHandler netHandler = this.server.getHandlerByName(packet.contactName);
-		
-		if (netHandler == null || netHandler.status == UserStatus.INVISIBLE) {
-			this.networkClient.addToSendQueue(new PacketInWindowPopup(String.format(
+		if (netHandler == null || netHandler.databaseEntry.status == UserStatus.INVISIBLE) {
+			this.networkClient.addToSendQueue(new PacketMessage(packet.contactName, String.format(
 					"%s is offline and may not receive messages", packet.contactName)));
 			return;
 		}
@@ -275,9 +209,50 @@ public class NetworkHandler {
     }
     
 	private void handleAddContactPacket(PacketAddContact packet) {
+		if (packet.contactName.equals(this.userName)) {
+			this.networkClient.addToSendQueue(new PacketInWindowPopup("You may not add yourself to your contact list"));
+			return;
+		}
+		
+		if (this.databaseEntry.contacts.contains(packet.contactName)) {
+			this.networkClient.addToSendQueue(new PacketInWindowPopup(String.format(
+					"%s is already on your contact list", packet.contactName)));
+			return;
+		}
+		
+		NetworkHandler netHandler = this.server.getHandlerByName(packet.contactName);
+		if (netHandler == null || netHandler.databaseEntry.status == UserStatus.INVISIBLE) {
+			this.networkClient.addToSendQueue(new PacketInWindowPopup(String.format(
+					"%s is offline and may not be added to your contact list", packet.contactName)));
+			return;
+		}
+		
+		netHandler.networkClient.addToSendQueue(new PacketContactRequest(this.userName));
+		this.networkClient.addToSendQueue(new PacketInWindowPopup(String.format(
+				"%s has been sent a request to be added on your contact list", packet.contactName)));
 	}
     
 	private void handleRemoveContactPacket(PacketRemoveContact packet) {
+    	if (!this.databaseEntry.contacts.contains(packet.contactName)) {
+    		this.kick("Protocol violation!");
+    		return;
+    	}
+    	
+		this.databaseEntry.contacts.remove(packet.contactName);
+		this.databaseEntry.save();
+		this.performSync();
+		
+		UserDatabaseEntry contactDatabaseEntry = new UserDatabaseEntry(this.server, packet.contactName);
+		contactDatabaseEntry.load();
+		contactDatabaseEntry.contacts.remove(this.userName);
+		contactDatabaseEntry.save();
+		
+		NetworkHandler contactNetHandler = this.server.getHandlerByName(packet.contactName);
+		if (contactNetHandler == null) {
+			return;
+		}
+		contactNetHandler.databaseEntry = contactDatabaseEntry;
+		contactNetHandler.performSync();
 	}
 	
     private void handleStatusPacket(PacketStatus packet) {
@@ -286,5 +261,35 @@ public class NetworkHandler {
     		return;
     	}
     	this.changeStatus(packet.status, false);
+	}
+    
+	private void handleContactRequestPacket(PacketContactRequest packet) {
+		String[] contactNameSplitted = packet.contactName.split(":");
+		String requester = contactNameSplitted[0];
+		String answer = contactNameSplitted[1];
+		String requesterNotification = "";
+
+		if (answer.equalsIgnoreCase("yes")) {
+			this.databaseEntry.contacts.add(requester);
+			this.databaseEntry.save();
+			this.performSync();
+			
+			UserDatabaseEntry requesterDatabaseEntry = new UserDatabaseEntry(this.server, requester);
+			requesterDatabaseEntry.load();
+			requesterDatabaseEntry.contacts.add(this.userName);
+			requesterDatabaseEntry.save();
+			
+			requesterNotification = String.format("%s has accepted your request", this.userName);
+		} else {
+			requesterNotification = String.format("%s has declined your request", this.userName);
+		}
+		
+		NetworkHandler requesterNetHandler = this.server.getHandlerByName(requester);
+		if (requesterNetHandler == null) {
+			return;
+		}
+		requesterNetHandler.databaseEntry.load();
+		requesterNetHandler.performSync();
+		requesterNetHandler.networkClient.addToSendQueue(new PacketInWindowPopup(requesterNotification));
 	}
 }

@@ -13,13 +13,9 @@ import me.vlod.pinto.consolehandler.commands.BanIPCMD;
 import me.vlod.pinto.consolehandler.commands.GetIPCMD;
 import me.vlod.pinto.consolehandler.commands.KickCMD;
 import me.vlod.pinto.consolehandler.commands.KickIPCMD;
-import me.vlod.pinto.consolehandler.commands.MuteCMD;
-import me.vlod.pinto.consolehandler.commands.MuteIPCMD;
 import me.vlod.pinto.consolehandler.commands.ReloadCMD;
 import me.vlod.pinto.consolehandler.commands.UnbanCMD;
 import me.vlod.pinto.consolehandler.commands.UnbanIPCMD;
-import me.vlod.pinto.consolehandler.commands.UnmuteCMD;
-import me.vlod.pinto.consolehandler.commands.UnmuteIPCMD;
 
 public class ConsoleHandler {
 	protected PintoServer server;
@@ -35,13 +31,9 @@ public class ConsoleHandler {
     	this.commands.add(new GetIPCMD());
     	this.commands.add(new KickCMD());
     	this.commands.add(new KickIPCMD());
-    	this.commands.add(new MuteCMD());
-    	this.commands.add(new MuteIPCMD());
     	this.commands.add(new ReloadCMD());
     	this.commands.add(new UnbanCMD());
     	this.commands.add(new UnbanIPCMD());
-    	this.commands.add(new UnmuteCMD());
-    	this.commands.add(new UnmuteIPCMD());
     }
 
 	public void handleInput(String input) {

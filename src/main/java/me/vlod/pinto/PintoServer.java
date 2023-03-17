@@ -15,7 +15,6 @@ import java.util.Scanner;
 import me.vlod.pinto.configuration.BannedConfig;
 import me.vlod.pinto.configuration.ConfigLoaderSaver;
 import me.vlod.pinto.configuration.MainConfig;
-import me.vlod.pinto.configuration.MutedConfig;
 import me.vlod.pinto.configuration.OperatorConfig;
 import me.vlod.pinto.configuration.WhitelistConfig;
 import me.vlod.pinto.console.Console;
@@ -83,7 +82,7 @@ public class PintoServer implements Runnable {
 			
 			// Load database
 			logger.info("Loading database...");
-			this.database = new SQLiteInterface("pintoserver.db");
+			this.database = new SQLiteInterface(MainConfig.instance.databaseFile);
 			
 			if (!this.database.doesTableExist(TABLE_NAME)) {
 				LinkedHashMap<String, String> columns = new LinkedHashMap<String, String>();
@@ -255,11 +254,7 @@ public class PintoServer implements Runnable {
 		cls = new ConfigLoaderSaver(BannedConfig.instance = new BannedConfig(), 
 				new File("banned.yml"));
 		cls.load();
-		
-		cls = new ConfigLoaderSaver(MutedConfig.instance = new MutedConfig(), 
-				new File("muted.yml"));
-		cls.load();
-		
+
 		cls = new ConfigLoaderSaver(OperatorConfig.instance = new OperatorConfig(), 
 				new File("operator.yml"));
 		cls.load();
@@ -277,11 +272,7 @@ public class PintoServer implements Runnable {
 		cls = new ConfigLoaderSaver(BannedConfig.instance, 
 				new File("banned.yml"));
 		cls.save();
-		
-		cls = new ConfigLoaderSaver(MutedConfig.instance, 
-				new File("muted.yml"));
-		cls.save();
-		
+
 		cls = new ConfigLoaderSaver(OperatorConfig.instance, 
 				new File("operator.yml"));
 		cls.save();
@@ -322,30 +313,8 @@ public class PintoServer implements Runnable {
 			PintoServer.logger.log("Moderation", "Unbanned the user \"" + target + "\"");
 		}
 		this.saveConfig();
-	}
-	
-	public void muteUser(String target, String reason, boolean ip) {
-		if (ip) {
-			MutedConfig.instance.ips.put(target, reason);
-			PintoServer.logger.log("Moderation", "Muted the IP \"" + target + "\" for \"" + reason + "\"");
-		} else {
-			MutedConfig.instance.users.put(target, reason);
-			PintoServer.logger.log("Moderation", "Muted the user \"" + target + "\" for \"" + reason + "\"");
-		}
-		this.saveConfig();
-	}
-	
-	public void unmuteUser(String target, boolean ip) {
-		if (ip) {
-			MutedConfig.instance.ips.remove(target);
-			PintoServer.logger.log("Moderation", "Unmuted the IP \"" + target + "\"");
-		} else {
-			MutedConfig.instance.users.remove(target);
-			PintoServer.logger.log("Moderation", "Unmuted the user \"" + target + "\"");
-		}
-		this.saveConfig();
-	}
-	
+	}	
+
 	public NetworkHandler getHandlerByName(String name) {
 		for (NetworkHandler handler : this.clients.toArray(new NetworkHandler[0])) {
 			if (handler.userName != null && handler.userName.equals(name)) {

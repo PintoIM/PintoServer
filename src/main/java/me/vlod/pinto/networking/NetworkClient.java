@@ -101,6 +101,7 @@ public class NetworkClient {
     	for (Packet packet : this.packetSendQueue.toArray(new Packet[0])) {
         	try {
         		if (!this.isConnected) return;
+        		if (packet == null) continue;
         		this.outputStream.write((byte)packet.getID());
     			packet.write(this.outputStream);
     			this.outputStream.flush();
