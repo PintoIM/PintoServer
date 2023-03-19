@@ -18,6 +18,8 @@ public class NetworkHandler {
 	public boolean loggedIn;
 	public UserDatabaseEntry databaseEntry;
 	public String userName;
+	public boolean inCall;
+	public String inCallWith;
 
 	public NetworkHandler(PintoServer server, NetworkAddress address, NetworkClient client) {
 		this.server = server;
@@ -125,6 +127,18 @@ public class NetworkHandler {
 			break;
 		case 9:
 			this.handleContactRequestPacket((PacketContactRequest)packet);
+			break;
+		case 11:
+			this.handleCallStartPacket((PacketCallStart)packet);
+			break;
+		case 12:
+			this.handleCallRequestPacket((PacketCallRequest)packet);
+			break;
+		case 13:
+			this.handleCallPartyInfoPacket((PacketCallPartyInfo)packet);
+			break;
+		case 14:
+			this.handleCallEndPacket((PacketCallEnd)packet);
 			break;
 		}
 	}
@@ -291,5 +305,56 @@ public class NetworkHandler {
 		requesterNetHandler.databaseEntry.load();
 		requesterNetHandler.performSync();
 		requesterNetHandler.networkClient.addToSendQueue(new PacketInWindowPopup(requesterNotification));
+	}
+	
+	private void handleCallStartPacket(PacketCallStart packet) {
+		NetworkHandler contactNetHandler = this.server.getHandlerByName(packet.contactName);
+		
+		if (contactNetHandler == null) {
+			this.networkClient.addToSendQueue(new PacketInWindowPopup(String.format(
+					"%s is offline and may not receive calls", packet.contactName)));
+			this.networkClient.addToSendQueue(new PacketCallEnd());
+			return;
+		}
+		
+		contactNetHandler.networkClient.addToSendQueue(new PacketCallRequest(this.userName));
+	}
+	
+	private void handleCallRequestPacket(PacketCallRequest packet) {
+		String[] contactNameSplitted = packet.contactName.split(":");
+		String target = contactNameSplitted[0];
+		String answer = contactNameSplitted[1];
+		NetworkHandler targetNetHandler = this.server.getHandlerByName(target);
+
+		if (answer.equalsIgnoreCase("yes")) {
+			this.inCall = true;
+			this.inCallWith = target;
+			targetNetHandler.inCall = true;
+			targetNetHandler.inCallWith = this.userName;
+		} else if (answer.equalsIgnoreCase("no")) {
+			targetNetHandler.networkClient.addToSendQueue(new PacketCallEnd());
+		}
+	}
+
+	private void handleCallPartyInfoPacket(PacketCallPartyInfo packet) {
+		NetworkHandler targetNetHandler = this.server.getHandlerByName(this.inCallWith);
+		if (targetNetHandler == null) {
+			return;
+		}
+		targetNetHandler.networkClient.addToSendQueue(new PacketCallPartyInfo(this.networkAddress.ip, packet.port));
+	}
+
+	private void handleCallEndPacket(PacketCallEnd packet) {
+		NetworkHandler targetNetHandler = this.server.getHandlerByName(this.inCallWith);
+		
+		this.inCall = false;
+		this.inCallWith = null;
+		
+		if (targetNetHandler == null) {
+			return;
+		}
+		targetNetHandler.networkClient.addToSendQueue(new PacketCallEnd());
+		targetNetHandler.inCall = false;
+		targetNetHandler.inCallWith = null;
 	}
 }

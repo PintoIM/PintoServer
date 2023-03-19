@@ -18,6 +18,11 @@ public class Packets {
     	packetMap.put(7, PacketRemoveContact.class);
     	packetMap.put(8, PacketStatus.class);
     	packetMap.put(9, PacketContactRequest.class);
+    	packetMap.put(10, PacketClearContacts.class);
+    	packetMap.put(11, PacketCallStart.class);
+    	packetMap.put(12, PacketCallRequest.class);
+    	packetMap.put(13, PacketCallPartyInfo.class);
+    	packetMap.put(14, PacketCallEnd.class);
     }
 
     public static Packet getPacketByID(int id) {
