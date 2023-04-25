@@ -30,7 +30,7 @@ public class NetworkClient {
             this.inputStream = new DataInputStream(this.socket.getInputStream());
             this.outputStream = new DataOutputStream(this.socket.getOutputStream());
             
-            this.readThread = new Thread("Client read thread") {
+            this.readThread = new Thread("Client-Read-Thread") {
             	@Override
             	public void run() {
             		readThread_Func();
@@ -38,7 +38,7 @@ public class NetworkClient {
             };
             this.readThread.start();
             
-            this.sendThread = new Thread("Client send thread") {
+            this.sendThread = new Thread("Client-Send-Thread") {
             	@Override
             	public void run() {
             		sendThread_Func();

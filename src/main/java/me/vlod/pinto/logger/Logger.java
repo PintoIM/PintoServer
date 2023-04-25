@@ -16,7 +16,10 @@ public class Logger {
 		
 		LocalDateTime localDateTime = LocalDateTime.now();
 		DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss");
-		String text = dateTimeFormatter.format(localDateTime) + " [" + header + "] " + message;
+		String text = String.format("%s [%s] [%s] %s", 
+				dateTimeFormatter.format(localDateTime), 
+				Thread.currentThread().getName(),
+				header, message);
 		
 		for (Delegate target : this.targets) {
 			target.call(text, color);
@@ -25,6 +28,19 @@ public class Logger {
 	
 	public void log(String header, String message, Object... format) {
 		this.log(header, message, Color.black, format);
+	}
+	
+	public void logMultiLine(String header, String message, Color color, Object... format) {
+		message = String.format(message, (Object[])format);
+		String[] logs = message.split("\n");
+		
+		for (String log : logs) {
+			this.log(header, log, color);
+		}
+	}
+	
+	public void logMultiLine(String header, String message, Object... format) {
+		this.logMultiLine(header, message, Color.black, format);
 	}
 	
 	public void level(LogLevel level, String message, Object... format) {
@@ -36,6 +52,18 @@ public class Logger {
 			this.log(level.toString(), message, new Color(246, 190, 0), format);
 		} else {
 			this.log(level.toString(), message, Color.black, format);
+		}
+	}
+	
+	public void levelMultiLine(LogLevel level, String message, Object... format) {
+		if (level == LogLevel.ERROR || 
+			level == LogLevel.SEVERE || 
+			level == LogLevel.FATAL) {
+			this.logMultiLine(level.toString(), message, Color.red, format);
+		} else if (level == LogLevel.WARN) {
+			this.logMultiLine(level.toString(), message, new Color(246, 190, 0), format);
+		} else {
+			this.logMultiLine(level.toString(), message, Color.black, format);
 		}
 	}
 	
@@ -64,8 +92,6 @@ public class Logger {
 	}
 	
 	public void throwable(Throwable throwable) {
-		this.level(LogLevel.ERROR, "An throwable of type " + throwable.getClass().getName() + 
-				" has occured: " + throwable.getMessage());
-		this.level(LogLevel.ERROR, "Throwable stacktrace: " + Utils.getThrowableStackTraceAsStr(throwable));
+		this.levelMultiLine(LogLevel.SEVERE, Utils.getThrowableStackTraceAsStr(throwable));
 	}
 }

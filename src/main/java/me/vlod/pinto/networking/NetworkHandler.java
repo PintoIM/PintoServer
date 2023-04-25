@@ -41,7 +41,7 @@ public class NetworkHandler {
 			}
 		};
 		
-		PintoServer.logger.info(this.networkAddress + " has connected");
+		PintoServer.logger.info("%s has connected", this.networkAddress);
 	}
 	
 	private void onReceivedPacket(Packet packet) {
@@ -51,7 +51,7 @@ public class NetworkHandler {
 	private void onDisconnect(String reason) {
 		this.changeStatus(UserStatus.OFFLINE, true);
 		this.server.clients.remove(this);
-		PintoServer.logger.info(this.networkAddress + " has disconnected: " + reason);
+		PintoServer.logger.info("%s has disconnected: %s", this.networkAddress, reason);
 	}
 	
 	public void onTick() {
@@ -80,12 +80,12 @@ public class NetworkHandler {
 	}
 	
     public void kick(String reason) {
-    	PintoServer.logger.info("Kicking " + this.networkAddress + 
-    			(this.userName != null ? " (" + this.userName + ")" : "") + ": " + reason);
+    	PintoServer.logger.info("Kicking %s (%s): %s", this.networkAddress,
+    			(this.userName != null ? this.userName : "** UNAUTHENTICATED **"), reason);
     	this.networkClient.clearSendQueue();
     	this.networkClient.addToSendQueue(new PacketLogout(reason));
     	this.networkClient.flushSendQueue();
-    	this.networkClient.disconnect("Kicked -> " + reason);
+    	this.networkClient.disconnect(String.format("Kicked (%s)", reason));
     }
     
     public void changeStatus(UserStatus status, boolean noSelfUpdate) {
@@ -337,6 +337,7 @@ public class NetworkHandler {
 	}
 
 	private void handleCallPartyInfoPacket(PacketCallPartyInfo packet) {
+		// FIXME: Make this actually work
 		NetworkHandler targetNetHandler = this.server.getHandlerByName(this.inCallWith);
 		if (targetNetHandler == null) {
 			return;

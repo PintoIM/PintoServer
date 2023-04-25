@@ -139,7 +139,7 @@ public class PintoServer implements Runnable {
 		}
 		
 		// Network accept thread
-		new Thread("Network accept thread") {
+		new Thread("Network-Accept-Thread") {
 			public void run() {
 				while (running) {
 					try {
@@ -261,20 +261,16 @@ public class PintoServer implements Runnable {
 	}
 	
 	public void saveConfig() {
-		ConfigLoaderSaver cls = new ConfigLoaderSaver(MainConfig.instance, 
-				new File("main.yml"));
+		ConfigLoaderSaver cls = new ConfigLoaderSaver(MainConfig.instance, new File("main.yml"));
 		cls.save();
 		
-		cls = new ConfigLoaderSaver(WhitelistConfig.instance, 
-				new File("whitelist.yml"));
+		cls = new ConfigLoaderSaver(WhitelistConfig.instance, new File("whitelist.yml"));
 		cls.save();
 		
-		cls = new ConfigLoaderSaver(BannedConfig.instance, 
-				new File("banned.yml"));
+		cls = new ConfigLoaderSaver(BannedConfig.instance, new File("banned.yml"));
 		cls.save();
 
-		cls = new ConfigLoaderSaver(OperatorConfig.instance, 
-				new File("operator.yml"));
+		cls = new ConfigLoaderSaver(OperatorConfig.instance, new File("operator.yml"));
 		cls.save();
 	}
 	
@@ -371,25 +367,6 @@ public class PintoServer implements Runnable {
 		
 		// Create the graphical console if we aren't in a headless environment
 		if (!GraphicsEnvironment.isHeadless()) {
-			/*
-			// TODO: Better implementation
-			if ((SystemUtils.IS_OS_WINDOWS || SystemUtils.IS_OS_LINUX || SystemUtils.IS_OS_MAC_OSX) && 
-					JOptionPane.YES_OPTION == JOptionPane.showConfirmDialog(null, "Do you want to use the system theme?", 
-						"PintoServer - Console - System theme usage confirmation", JOptionPane.YES_NO_OPTION)) {
-				try {
-					// Hack: Allow the system look and feel on JREs that do not report it correctly
-					if (SystemUtils.IS_OS_WINDOWS) {
-						UIManager.setLookAndFeel("com.sun.java.swing.plaf.windows.WindowsClassicLookAndFeel");
-					} else if (SystemUtils.IS_OS_LINUX) {
-						UIManager.setLookAndFeel("com.sun.java.swing.plaf.gtk.GTKLookAndFeel");
-					} else if (SystemUtils.IS_OS_MAC_OSX) {
-						UIManager.setLookAndFeel("com.apple.laf.AquaLookAndFeel");
-					}
-				} catch (Exception ex) {
-					logger.throwable(ex);
-				}
-			}*/
-
 			pintoServer.console = new Console();
 			pintoServer.console.onSubmit = new Delegate() {
 				@Override
@@ -406,6 +383,6 @@ public class PintoServer implements Runnable {
 			pintoServer.console.show();
 		}
 
-		(new Thread(PintoServer.instance = pintoServer, "PintoServer main thread")).start();
+		(new Thread(PintoServer.instance = pintoServer, "Pinto-Main-Thread")).start();
 	}
 }
