@@ -350,7 +350,7 @@ public class PintoServer implements Runnable {
 		List<NetworkAddress> exclusionListAsList = Arrays.asList(exclusionList);
 		for (NetworkHandler handler : this.clients.toArray(new NetworkHandler[0])) {
 			if (exclusionListAsList.contains(handler.networkAddress)) continue;
-			handler.networkClient.addToSendQueue(packet);
+			handler.addToSendQueue(packet);
 		}
 	}
 
