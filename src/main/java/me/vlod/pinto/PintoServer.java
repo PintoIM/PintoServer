@@ -24,7 +24,7 @@ import me.vlod.pinto.logger.Logger;
 import me.vlod.pinto.networking.NetworkAddress;
 import me.vlod.pinto.networking.NetworkClient;
 import me.vlod.pinto.networking.NetworkHandler;
-import me.vlod.pinto.networking.Packet;
+import me.vlod.pinto.networking.packet.Packet;
 import me.vlod.sql.SQLInterface;
 import me.vlod.sql.SQLiteInterface;
 

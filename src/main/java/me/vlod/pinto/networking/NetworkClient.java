@@ -9,6 +9,8 @@ import java.util.LinkedList;
 
 import me.vlod.pinto.Delegate;
 import me.vlod.pinto.PintoServer;
+import me.vlod.pinto.networking.packet.Packet;
+import me.vlod.pinto.networking.packet.Packets;
 
 public class NetworkClient {
     private boolean noDisconnectEvent;
@@ -123,7 +125,7 @@ public class NetworkClient {
 	                    packet.read(this.inputStream);
 	                    this.receivedPacket.call(packet);
 					} else {
-						throw new SocketException("Received invalid packet -> " + packetID);
+						throw new SocketException(String.format("Received invalid packet (%d)", packetID));
 					}
 				} else {
 					throw new SocketException("Client disconnect");
@@ -137,7 +139,7 @@ public class NetworkClient {
 				}
     		} catch (Exception ex) {
                 if (!(ex instanceof IOException || ex instanceof SocketException)) {
-                    this.disconnect("Internal error -> " + ex.getMessage());
+                    this.disconnect(String.format("Internal error (%s)", ex.getMessage()));
                     PintoServer.logger.throwable(ex);
                 } else {
                     this.disconnect(ex.getMessage());

@@ -1,12 +1,12 @@
-package me.vlod.pinto.networking;
+package me.vlod.pinto.networking.packet;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
-public class PacketCallEnd implements Packet {
-    public PacketCallEnd() { }
+import me.vlod.pinto.networking.NetworkHandler;
 
+public class PacketClearContacts implements Packet {
 	@Override
 	public void read(DataInputStream stream) throws IOException {
 	}
@@ -17,6 +17,10 @@ public class PacketCallEnd implements Packet {
 
 	@Override
 	public int getID() {
-		return 14;
+		return 10;
+	}
+
+	@Override
+	public void handle(NetworkHandler netHandler) {
 	}
 }

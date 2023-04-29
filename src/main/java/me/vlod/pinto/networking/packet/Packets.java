@@ -1,4 +1,4 @@
-package me.vlod.pinto.networking;
+package me.vlod.pinto.networking.packet;
 
 import java.util.HashMap;
 

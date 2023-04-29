@@ -1,17 +1,18 @@
-package me.vlod.pinto.networking;
+package me.vlod.pinto.networking.packet;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
 import me.vlod.pinto.Utils;
+import me.vlod.pinto.networking.NetworkHandler;
 
-public class PacketCallRequest implements Packet {
+public class PacketContactRequest implements Packet {
     public String contactName;
 
-    public PacketCallRequest() { }
+    public PacketContactRequest() { }
     
-    public PacketCallRequest(String contactName) {
+    public PacketContactRequest(String contactName) {
     	this.contactName = contactName;
     }
     
@@ -27,6 +28,11 @@ public class PacketCallRequest implements Packet {
 
 	@Override
 	public int getID() {
-		return 12;
+		return 9;
+	}
+
+	@Override
+	public void handle(NetworkHandler netHandler) {
+		netHandler.handleContactRequestPacket(this);
 	}
 }

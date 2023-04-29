@@ -1,10 +1,11 @@
-package me.vlod.pinto.networking;
+package me.vlod.pinto.networking.packet;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
 import me.vlod.pinto.Utils;
+import me.vlod.pinto.networking.NetworkHandler;
 
 public class PacketLogout implements Packet {
     public String reason;
@@ -28,5 +29,9 @@ public class PacketLogout implements Packet {
 	@Override
 	public int getID() {
 		return 2;
+	}
+
+	@Override
+	public void handle(NetworkHandler netHandler) {
 	}
 }

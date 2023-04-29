@@ -1,10 +1,11 @@
-package me.vlod.pinto.networking;
+package me.vlod.pinto.networking.packet;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
 import me.vlod.pinto.Utils;
+import me.vlod.pinto.networking.NetworkHandler;
 
 public class PacketLogin implements Packet {
     public byte protocolVersion;
@@ -37,5 +38,10 @@ public class PacketLogin implements Packet {
 	@Override
 	public int getID() {
 		return 0;
+	}
+
+	@Override
+	public void handle(NetworkHandler netHandler) {
+		netHandler.handleLoginPacket(this);
 	}
 }

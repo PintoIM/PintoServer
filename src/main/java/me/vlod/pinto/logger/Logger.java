@@ -35,7 +35,7 @@ public class Logger {
 		String[] logs = message.split("\n");
 		
 		for (String log : logs) {
-			this.log(header, log, color);
+			this.log(header, log.replace("\n", "").replace("\r", ""), color);
 		}
 	}
 	

@@ -1,10 +1,11 @@
-package me.vlod.pinto.networking;
+package me.vlod.pinto.networking.packet;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
 import me.vlod.pinto.Utils;
+import me.vlod.pinto.networking.NetworkHandler;
 
 public class PacketCallPartyInfo implements Packet {
     public String ipAddress;
@@ -31,5 +32,10 @@ public class PacketCallPartyInfo implements Packet {
 	@Override
 	public int getID() {
 		return 13;
+	}
+
+	@Override
+	public void handle(NetworkHandler netHandler) {
+		netHandler.handleCallPartyInfoPacket(this);
 	}
 }

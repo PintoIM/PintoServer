@@ -6,6 +6,21 @@ import me.vlod.pinto.UserDatabaseEntry;
 import me.vlod.pinto.UserStatus;
 import me.vlod.pinto.consolehandler.ConsoleCaller;
 import me.vlod.pinto.consolehandler.ConsoleHandler;
+import me.vlod.pinto.networking.packet.Packet;
+import me.vlod.pinto.networking.packet.PacketAddContact;
+import me.vlod.pinto.networking.packet.PacketCallEnd;
+import me.vlod.pinto.networking.packet.PacketCallPartyInfo;
+import me.vlod.pinto.networking.packet.PacketCallRequest;
+import me.vlod.pinto.networking.packet.PacketCallStart;
+import me.vlod.pinto.networking.packet.PacketClearContacts;
+import me.vlod.pinto.networking.packet.PacketContactRequest;
+import me.vlod.pinto.networking.packet.PacketInWindowPopup;
+import me.vlod.pinto.networking.packet.PacketLogin;
+import me.vlod.pinto.networking.packet.PacketLogout;
+import me.vlod.pinto.networking.packet.PacketMessage;
+import me.vlod.pinto.networking.packet.PacketRegister;
+import me.vlod.pinto.networking.packet.PacketRemoveContact;
+import me.vlod.pinto.networking.packet.PacketStatus;
 
 public class NetworkHandler {
 	public static final int PROTOCOL_VERSION = 11;
@@ -118,45 +133,10 @@ public class NetworkHandler {
 				packet.getClass().getSimpleName().toUpperCase(),
 				packet.getID(), this.networkAddress,
     			(this.userName != null ? this.userName : "** UNAUTHENTICATED **"));
-		
-		switch (packet.getID()) {
-		case 0:
-			this.handleLoginPacket((PacketLogin)packet);
-			break;
-		case 1:
-			this.handleRegisterPacket((PacketRegister)packet);
-			break;
-		case 3:
-			this.handleMessagePacket((PacketMessage)packet);
-			break;
-		case 6:
-			this.handleAddContactPacket((PacketAddContact)packet);
-			break;
-		case 7:
-			this.handleRemoveContactPacket((PacketRemoveContact)packet);
-			break;
-		case 8:
-			this.handleStatusPacket((PacketStatus)packet);
-			break;
-		case 9:
-			this.handleContactRequestPacket((PacketContactRequest)packet);
-			break;
-		case 11:
-			this.handleCallStartPacket((PacketCallStart)packet);
-			break;
-		case 12:
-			this.handleCallRequestPacket((PacketCallRequest)packet);
-			break;
-		case 13:
-			this.handleCallPartyInfoPacket((PacketCallPartyInfo)packet);
-			break;
-		case 14:
-			this.handleCallEndPacket((PacketCallEnd)packet);
-			break;
-		}
+		packet.handle(this);
 	}
 
-	private void handleLoginPacket(PacketLogin packet) {
+	public void handleLoginPacket(PacketLogin packet) {
 		NetHandlerUtils.performModerationChecks(this, packet.name);
 		NetHandlerUtils.performProtocolCheck(this, packet.protocolVersion);
 		NetHandlerUtils.performNameVerification(this, packet.name);
@@ -195,7 +175,7 @@ public class NetworkHandler {
     	this.performSync();
     }
 
-	private void handleRegisterPacket(PacketRegister packet) {
+	public void handleRegisterPacket(PacketRegister packet) {
 		NetHandlerUtils.performModerationChecks(this, packet.name);
 		NetHandlerUtils.performNameVerification(this, packet.name);
     	this.userName = packet.name;
@@ -216,7 +196,7 @@ public class NetworkHandler {
     	this.addToSendQueue(new PacketLogin(this.protocolVersion, "", ""));
     }
 	
-    private void handleMessagePacket(PacketMessage packet) {
+	public void handleMessagePacket(PacketMessage packet) {
     	if (!this.databaseEntry.contacts.contains(packet.contactName)) {
 			this.addToSendQueue(new PacketMessage(packet.contactName, String.format(
 					"You may not send messages to %s", packet.contactName)));
@@ -235,7 +215,7 @@ public class NetworkHandler {
 		this.addToSendQueue(new PacketMessage(packet.contactName, message));
     }
     
-	private void handleAddContactPacket(PacketAddContact packet) {
+	public void handleAddContactPacket(PacketAddContact packet) {
 		if (packet.contactName.equals(this.userName)) {
 			this.addToSendQueue(new PacketInWindowPopup("You may not add yourself to your contact list"));
 			return;
@@ -259,7 +239,7 @@ public class NetworkHandler {
 				"%s has been sent a request to be added on your contact list", packet.contactName)));
 	}
     
-	private void handleRemoveContactPacket(PacketRemoveContact packet) {
+	public void handleRemoveContactPacket(PacketRemoveContact packet) {
     	if (!this.databaseEntry.contacts.contains(packet.contactName)) {
     		this.kick("Protocol violation!");
     		return;
@@ -282,7 +262,7 @@ public class NetworkHandler {
 		contactNetHandler.performSync();
 	}
 	
-    private void handleStatusPacket(PacketStatus packet) {
+	public void handleStatusPacket(PacketStatus packet) {
     	if (packet.status == UserStatus.OFFLINE) {
     		this.kick("Protocol violation!");
     		return;
@@ -290,7 +270,7 @@ public class NetworkHandler {
     	this.changeStatus(packet.status, false);
 	}
     
-	private void handleContactRequestPacket(PacketContactRequest packet) {
+	public void handleContactRequestPacket(PacketContactRequest packet) {
 		String[] contactNameSplitted = packet.contactName.split(":");
 		String requester = contactNameSplitted[0];
 		String answer = contactNameSplitted[1];
@@ -320,7 +300,7 @@ public class NetworkHandler {
 		requesterNetHandler.addToSendQueue(new PacketInWindowPopup(requesterNotification));
 	}
 	
-	private void handleCallStartPacket(PacketCallStart packet) {
+	public void handleCallStartPacket(PacketCallStart packet) {
 		NetworkHandler contactNetHandler = this.server.getHandlerByName(packet.contactName);
 		
 		if (contactNetHandler == null) {
@@ -333,7 +313,7 @@ public class NetworkHandler {
 		contactNetHandler.addToSendQueue(new PacketCallRequest(this.userName));
 	}
 	
-	private void handleCallRequestPacket(PacketCallRequest packet) {
+	public void handleCallRequestPacket(PacketCallRequest packet) {
 		String[] contactNameSplitted = packet.contactName.split(":");
 		String target = contactNameSplitted[0];
 		String answer = contactNameSplitted[1];
@@ -349,7 +329,7 @@ public class NetworkHandler {
 		}
 	}
 
-	private void handleCallPartyInfoPacket(PacketCallPartyInfo packet) {
+	public void handleCallPartyInfoPacket(PacketCallPartyInfo packet) {
 		// FIXME: Make this actually work
 		NetworkHandler targetNetHandler = this.server.getHandlerByName(this.inCallWith);
 		if (targetNetHandler == null) {
@@ -358,7 +338,7 @@ public class NetworkHandler {
 		targetNetHandler.addToSendQueue(new PacketCallPartyInfo(this.networkAddress.ip, packet.port));
 	}
 
-	private void handleCallEndPacket(PacketCallEnd packet) {
+	public void handleCallEndPacket(PacketCallEnd packet) {
 		NetworkHandler targetNetHandler = this.server.getHandlerByName(this.inCallWith);
 		
 		this.inCall = false;
