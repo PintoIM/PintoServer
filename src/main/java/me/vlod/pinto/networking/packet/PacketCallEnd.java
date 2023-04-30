@@ -24,6 +24,6 @@ public class PacketCallEnd implements Packet {
 
 	@Override
 	public void handle(NetworkHandler netHandler) {
-		netHandler.handleCallEndPacket(this);
+		//netHandler.handleCallEndPacket(this);
 	}
 }

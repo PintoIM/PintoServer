@@ -33,6 +33,6 @@ public class PacketCallStart implements Packet {
 
 	@Override
 	public void handle(NetworkHandler netHandler) {
-		netHandler.handleCallStartPacket(this);
+		//netHandler.handleCallStartPacket(this);
 	}
 }

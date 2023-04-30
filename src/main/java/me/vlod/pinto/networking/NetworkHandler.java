@@ -8,10 +8,6 @@ import me.vlod.pinto.consolehandler.ConsoleCaller;
 import me.vlod.pinto.consolehandler.ConsoleHandler;
 import me.vlod.pinto.networking.packet.Packet;
 import me.vlod.pinto.networking.packet.PacketAddContact;
-import me.vlod.pinto.networking.packet.PacketCallEnd;
-import me.vlod.pinto.networking.packet.PacketCallPartyInfo;
-import me.vlod.pinto.networking.packet.PacketCallRequest;
-import me.vlod.pinto.networking.packet.PacketCallStart;
 import me.vlod.pinto.networking.packet.PacketClearContacts;
 import me.vlod.pinto.networking.packet.PacketContactRequest;
 import me.vlod.pinto.networking.packet.PacketInWindowPopup;
@@ -300,6 +296,7 @@ public class NetworkHandler {
 		requesterNetHandler.addToSendQueue(new PacketInWindowPopup(requesterNotification));
 	}
 	
+	/*
 	public void handleCallStartPacket(PacketCallStart packet) {
 		NetworkHandler contactNetHandler = this.server.getHandlerByName(packet.contactName);
 		
@@ -350,5 +347,5 @@ public class NetworkHandler {
 		targetNetHandler.addToSendQueue(new PacketCallEnd());
 		targetNetHandler.inCall = false;
 		targetNetHandler.inCallWith = null;
-	}
+	}*/
 }

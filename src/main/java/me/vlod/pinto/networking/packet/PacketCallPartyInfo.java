@@ -36,6 +36,6 @@ public class PacketCallPartyInfo implements Packet {
 
 	@Override
 	public void handle(NetworkHandler netHandler) {
-		netHandler.handleCallPartyInfoPacket(this);
+		//netHandler.handleCallPartyInfoPacket(this);
 	}
 }
