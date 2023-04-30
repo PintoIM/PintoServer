@@ -12,7 +12,6 @@ public class Packets {
     	packetMap.put(1, PacketRegister.class);
     	packetMap.put(2, PacketLogout.class);
     	packetMap.put(3, PacketMessage.class);
-    	packetMap.put(4, PacketTyping.class);
     	packetMap.put(5, PacketInWindowPopup.class);
     	packetMap.put(6, PacketAddContact.class);
     	packetMap.put(7, PacketRemoveContact.class);

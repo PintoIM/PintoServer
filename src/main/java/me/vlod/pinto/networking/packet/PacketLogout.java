@@ -18,12 +18,12 @@ public class PacketLogout implements Packet {
     
 	@Override
 	public void read(DataInputStream stream) throws IOException {
-		this.reason = Utils.readUTF8StringFromStream(stream);
+		this.reason = Utils.readASCIIStringFromStream(stream);
 	}
 	
 	@Override
 	public void write(DataOutputStream stream) throws IOException {
-		Utils.writeUTF8StringToStream(stream, this.reason);
+		Utils.writeASCIIStringToStream(stream, this.reason);
 	}
 
 	@Override

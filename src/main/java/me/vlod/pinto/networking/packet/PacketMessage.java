@@ -20,14 +20,14 @@ public class PacketMessage implements Packet {
     
 	@Override
 	public void read(DataInputStream stream) throws IOException {
-		this.contactName = Utils.readUTF8StringFromStream(stream);
-		this.message = Utils.readUTF8StringFromStream(stream);
+		this.contactName = Utils.readASCIIStringFromStream(stream);
+		this.message = Utils.readASCIIStringFromStream(stream);
 	}
 	
 	@Override
 	public void write(DataOutputStream stream) throws IOException {
-		Utils.writeUTF8StringToStream(stream, this.contactName);
-		Utils.writeUTF8StringToStream(stream, this.message);
+		Utils.writeASCIIStringToStream(stream, this.contactName);
+		Utils.writeASCIIStringToStream(stream, this.message);
 	}
 
 	@Override

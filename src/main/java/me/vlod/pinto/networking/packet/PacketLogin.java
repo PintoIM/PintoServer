@@ -24,15 +24,15 @@ public class PacketLogin implements Packet {
 	@Override
 	public void read(DataInputStream stream) throws IOException {
 		this.protocolVersion = (byte) stream.read();
-		this.name = Utils.readUTF8StringFromStream(stream);
-		this.passwordHash = Utils.readUTF8StringFromStream(stream);
+		this.name = Utils.readASCIIStringFromStream(stream);
+		this.passwordHash = Utils.readASCIIStringFromStream(stream);
 	}
 	
 	@Override
 	public void write(DataOutputStream stream) throws IOException {
 		stream.write(this.protocolVersion);
-		Utils.writeUTF8StringToStream(stream, this.name);
-		Utils.writeUTF8StringToStream(stream, this.passwordHash);
+		Utils.writeASCIIStringToStream(stream, this.name);
+		Utils.writeASCIIStringToStream(stream, this.passwordHash);
 	}
 
 	@Override

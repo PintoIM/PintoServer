@@ -219,18 +219,18 @@ public class Utils {
 		return value;
 	}
 	
-	public static String readUTF8StringFromStream(DataInputStream stream) throws IOException {
+	public static String readASCIIStringFromStream(DataInputStream stream) throws IOException {
 	     short length = stream.readShort();
 	     if (length < 1) return "";
 	     byte[] buffer = new byte[length];
 	     stream.read(buffer);
-	     return new String(buffer, "UTF-8");
+	     return new String(buffer, "US-ASCII");
 	}
 	
-	public static void writeUTF8StringToStream(DataOutputStream stream, String str) throws IOException {
+	public static void writeASCIIStringToStream(DataOutputStream stream, String str) throws IOException {
 	     stream.writeShort((short)str.length());
 	     if (str.length() < 1) return;
-	     stream.write(str.getBytes("UTF-8"));
+	     stream.write(str.getBytes("US-ASCII"));
 	}
 }
 
