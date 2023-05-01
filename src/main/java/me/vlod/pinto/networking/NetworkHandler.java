@@ -16,10 +16,11 @@ import me.vlod.pinto.networking.packet.PacketLogout;
 import me.vlod.pinto.networking.packet.PacketMessage;
 import me.vlod.pinto.networking.packet.PacketRegister;
 import me.vlod.pinto.networking.packet.PacketRemoveContact;
+import me.vlod.pinto.networking.packet.PacketShrimp;
 import me.vlod.pinto.networking.packet.PacketStatus;
 
 public class NetworkHandler {
-	public static final int PROTOCOL_VERSION = 11;
+	public static final int PROTOCOL_VERSION = 12;
 	private PintoServer server;
 	public NetworkAddress networkAddress;
 	public NetworkClient networkClient;
@@ -29,6 +30,7 @@ public class NetworkHandler {
 	public boolean loggedIn;
 	public UserDatabaseEntry databaseEntry;
 	public String userName;
+	public String clientVersion;
 	public boolean inCall;
 	public String inCallWith;
 
@@ -75,11 +77,13 @@ public class NetworkHandler {
 	
 	public void onTick() {
 		this.noLoginKickTicks++;
-
+		
 		if (this.noLoginKickTicks > 10 && this.userName == null) {
 			this.kick("No login packet received in an acceptable time frame!");
 			return;
 		}
+		
+		this.addToSendQueue(new PacketShrimp());
 	}
 
 	private void performSync() {
@@ -144,6 +148,7 @@ public class NetworkHandler {
     	}
 
     	this.protocolVersion = packet.protocolVersion;
+    	this.clientVersion = packet.clientVersion;
     	this.userName = packet.name;
 
     	// Check if the client is not registered
@@ -166,6 +171,8 @@ public class NetworkHandler {
     	
     	// Send the login packet to let the client know they have logged in
     	this.addToSendQueue(new PacketLogin(this.protocolVersion, "", ""));
+    	PintoServer.logger.info("%s has logged in (Client version %s)", 
+    			this.userName, this.clientVersion);
     	
     	// Sync the database to the user
     	this.performSync();
@@ -173,7 +180,11 @@ public class NetworkHandler {
 
 	public void handleRegisterPacket(PacketRegister packet) {
 		NetHandlerUtils.performModerationChecks(this, packet.name);
+		NetHandlerUtils.performProtocolCheck(this, packet.protocolVersion);
 		NetHandlerUtils.performNameVerification(this, packet.name);
+		
+    	this.protocolVersion = packet.protocolVersion;
+    	this.clientVersion = packet.clientVersion;
     	this.userName = packet.name;
 
     	if (UserDatabaseEntry.isRegistered(this.server, userName)) {
@@ -190,25 +201,26 @@ public class NetworkHandler {
     	
     	// Send the login packet to let the client know they have logged in
     	this.addToSendQueue(new PacketLogin(this.protocolVersion, "", ""));
+    	PintoServer.logger.info("%s has been registered and has logged in (Client version %s)", 
+    			this.userName, this.clientVersion);
     }
 	
 	public void handleMessagePacket(PacketMessage packet) {
     	if (!this.databaseEntry.contacts.contains(packet.contactName)) {
-			this.addToSendQueue(new PacketMessage(packet.contactName, String.format(
+			this.addToSendQueue(new PacketMessage(packet.contactName, "", String.format(
 					"You may not send messages to %s", packet.contactName)));
     		return;
     	}
     	
 		NetworkHandler netHandler = this.server.getHandlerByName(packet.contactName);
 		if (netHandler == null || netHandler.databaseEntry.status == UserStatus.INVISIBLE) {
-			this.addToSendQueue(new PacketMessage(packet.contactName, String.format(
+			this.addToSendQueue(new PacketMessage(packet.contactName, "", String.format(
 					"%s is offline and may not receive messages", packet.contactName)));
 			return;
 		}
 		
-		String message = String.format("%s: %s", this.userName, packet.message);
-		netHandler.addToSendQueue(new PacketMessage(this.userName, message));
-		this.addToSendQueue(new PacketMessage(packet.contactName, message));
+		netHandler.addToSendQueue(new PacketMessage(this.userName, this.userName, packet.message));
+		this.addToSendQueue(new PacketMessage(packet.contactName, this.userName, packet.message));
     }
     
 	public void handleAddContactPacket(PacketAddContact packet) {

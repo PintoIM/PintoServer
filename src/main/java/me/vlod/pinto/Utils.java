@@ -9,6 +9,7 @@ import java.math.BigInteger;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.List;
@@ -219,18 +220,19 @@ public class Utils {
 		return value;
 	}
 	
-	public static String readASCIIStringFromStream(DataInputStream stream) throws IOException {
-	     short length = stream.readShort();
-	     if (length < 1) return "";
-	     byte[] buffer = new byte[length];
-	     stream.read(buffer);
-	     return new String(buffer, "US-ASCII");
+	public static String readUTF16StringFromStream(DataInputStream stream) throws IOException {
+	    short length = stream.readShort();
+	    if (length < 1) return "";
+	    byte[] buffer = new byte[length];
+	    stream.read(buffer);
+	    return new String(buffer, StandardCharsets.UTF_16BE);
 	}
 	
-	public static void writeASCIIStringToStream(DataOutputStream stream, String str) throws IOException {
-	     stream.writeShort((short)str.length());
-	     if (str.length() < 1) return;
-	     stream.write(str.getBytes("US-ASCII"));
+	public static void writeUTF16StringToStream(DataOutputStream stream, String str) throws IOException {
+	    byte[] stringData = str.getBytes(StandardCharsets.UTF_16BE);
+		stream.writeShort((short)stringData.length);
+	    if (stringData.length < 1) return;
+	    stream.write(stringData);
 	}
 }
 

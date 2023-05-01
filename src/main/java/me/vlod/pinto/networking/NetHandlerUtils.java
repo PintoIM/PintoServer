@@ -40,7 +40,7 @@ public class NetHandlerUtils {
 	public static void performProtocolCheck(NetworkHandler handler, byte protocol) {
     	// Check if the client protocol is not PROTOCOL_VERSION
     	if (protocol != NetworkHandler.PROTOCOL_VERSION) {
-    		handler.kick(String.format("Illegal protocol version!\nMust be %d/, but got %d", 
+    		handler.kick(String.format("Illegal protocol version!\nMust be %d, but got %d", 
     				NetworkHandler.PROTOCOL_VERSION, protocol));
     		return;
     	}

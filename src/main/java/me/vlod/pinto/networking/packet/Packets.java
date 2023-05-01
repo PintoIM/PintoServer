@@ -23,6 +23,7 @@ public class Packets {
     	packetMap.put(12, PacketCallRequest.class);
     	packetMap.put(13, PacketCallPartyInfo.class);
     	packetMap.put(14, PacketCallEnd.class);*/
+    	packetMap.put(255, PacketShrimp.class);
     }
 
     public static Packet getPacketByID(int id) {

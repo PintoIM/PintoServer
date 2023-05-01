@@ -18,12 +18,12 @@ public class PacketCallStart implements Packet {
     
 	@Override
 	public void read(DataInputStream stream) throws IOException {
-		this.contactName = Utils.readASCIIStringFromStream(stream);
+		this.contactName = Utils.readUTF16StringFromStream(stream);
 	}
 	
 	@Override
 	public void write(DataOutputStream stream) throws IOException {
-		Utils.writeASCIIStringToStream(stream, this.contactName);
+		Utils.writeUTF16StringToStream(stream, this.contactName);
 	}
 
 	@Override

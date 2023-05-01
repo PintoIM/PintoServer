@@ -9,25 +9,29 @@ import me.vlod.pinto.networking.NetworkHandler;
 
 public class PacketMessage implements Packet {
     public String contactName;
+    public String sender;
     public String message;
 
     public PacketMessage() { }
     
-    public PacketMessage(String contactName, String message) {
+    public PacketMessage(String contactName, String sender, String message) {
     	this.contactName = contactName;
+    	this.sender = sender;
     	this.message = message;
     }
     
 	@Override
 	public void read(DataInputStream stream) throws IOException {
-		this.contactName = Utils.readASCIIStringFromStream(stream);
-		this.message = Utils.readASCIIStringFromStream(stream);
+		this.contactName = Utils.readUTF16StringFromStream(stream);
+		this.sender = Utils.readUTF16StringFromStream(stream);
+		this.message = Utils.readUTF16StringFromStream(stream);
 	}
 	
 	@Override
 	public void write(DataOutputStream stream) throws IOException {
-		Utils.writeASCIIStringToStream(stream, this.contactName);
-		Utils.writeASCIIStringToStream(stream, this.message);
+		Utils.writeUTF16StringToStream(stream, this.contactName);
+		Utils.writeUTF16StringToStream(stream, this.sender);
+		Utils.writeUTF16StringToStream(stream, this.message);
 	}
 
 	@Override

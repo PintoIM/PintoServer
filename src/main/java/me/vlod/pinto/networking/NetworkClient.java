@@ -104,7 +104,7 @@ public class NetworkClient {
         	try {
         		if (!this.isConnected) return;
         		if (packet == null) continue;
-        		this.outputStream.write((byte)packet.getID());
+        		this.outputStream.write(packet.getID());
     			packet.write(this.outputStream);
     			this.outputStream.flush();
     		} catch (Exception ex) {
