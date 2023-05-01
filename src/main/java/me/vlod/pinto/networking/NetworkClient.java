@@ -22,6 +22,7 @@ public class NetworkClient {
     private Thread sendThread;
     public Delegate disconnected = Delegate.empty;
     public Delegate receivedPacket = Delegate.empty;
+    private Object sendQueueLock = new Object();
     private LinkedList<Packet> packetSendQueue = new LinkedList<Packet>();
     
     public NetworkClient(Socket socket) {
@@ -82,7 +83,7 @@ public class NetworkClient {
         this.outputStream = null;
         this.readThread = null;
         this.sendThread = null;
-
+        
         if (this.isConnected && !noDisconnectEventValue) {
             this.disconnected.call(reason);
         }
@@ -91,26 +92,33 @@ public class NetworkClient {
 
     public void addToSendQueue(Packet packet) {
     	if (!this.isConnected) return;
-    	this.packetSendQueue.add(packet);
+    	synchronized (this.sendQueueLock) {
+    		this.packetSendQueue.add(packet);
+    	}
     }
 
     public void clearSendQueue() {
-    	this.packetSendQueue.clear();
+    	synchronized (this.sendQueueLock) {
+    		this.packetSendQueue.clear();
+    	}
     }
     
     public void flushSendQueue() {
     	if (!this.isConnected) return;
-    	for (Packet packet : this.packetSendQueue.toArray(new Packet[0])) {
-        	try {
-        		if (!this.isConnected) return;
-        		if (packet == null) continue;
-        		this.outputStream.write(packet.getID());
-    			packet.write(this.outputStream);
-    			this.outputStream.flush();
-    		} catch (Exception ex) {
-    			PintoServer.logger.throwable(ex);
-    		}
-        	this.packetSendQueue.remove(packet);
+    	
+    	synchronized (this.sendQueueLock) {
+        	for (Packet packet : this.packetSendQueue.toArray(new Packet[0])) {
+        		this.packetSendQueue.remove(packet);
+            	try {
+            		if (!this.isConnected) return;
+            		if (packet == null) continue;
+            		this.outputStream.write(packet.getID());
+        			packet.write(this.outputStream);
+        			this.outputStream.flush();
+        		} catch (Exception ex) {
+        			PintoServer.logger.throwable(ex);
+        		}
+        	}
     	}
     }
     
@@ -151,7 +159,9 @@ public class NetworkClient {
     
     private void sendThread_Func() {
     	while (this.isConnected) {
-    		this.flushSendQueue();
+    		synchronized (this.sendQueueLock) {
+    			this.flushSendQueue();
+    		}
     		
 			// Make the loop sleep to prevent high CPU usage
     		// Also here to allow the send queue to work

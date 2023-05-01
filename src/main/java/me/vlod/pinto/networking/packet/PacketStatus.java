@@ -21,13 +21,13 @@ public class PacketStatus implements Packet {
     
 	@Override
 	public void read(DataInputStream stream) throws IOException {
-		this.contactName = Utils.readUTF16StringFromStream(stream);
+		this.contactName = Utils.readPintoStringFromStream(stream, NetworkHandler.USERNAME_MAX);
 		this.status = UserStatus.fromIndex(stream.readInt());
 	}
 	
 	@Override
 	public void write(DataOutputStream stream) throws IOException {
-		Utils.writeUTF16StringToStream(stream, this.contactName);
+		Utils.writePintoStringToStream(stream, this.contactName, NetworkHandler.USERNAME_MAX);
 		stream.writeInt(this.status.getIndex());
 	}
 

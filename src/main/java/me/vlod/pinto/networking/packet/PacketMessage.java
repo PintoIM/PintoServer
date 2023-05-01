@@ -22,16 +22,16 @@ public class PacketMessage implements Packet {
     
 	@Override
 	public void read(DataInputStream stream) throws IOException {
-		this.contactName = Utils.readUTF16StringFromStream(stream);
-		this.sender = Utils.readUTF16StringFromStream(stream);
-		this.message = Utils.readUTF16StringFromStream(stream);
+		this.contactName = Utils.readPintoStringFromStream(stream, NetworkHandler.USERNAME_MAX);
+		this.sender = Utils.readPintoStringFromStream(stream, NetworkHandler.USERNAME_MAX);
+		this.message = Utils.readPintoStringFromStream(stream, 512);
 	}
 	
 	@Override
 	public void write(DataOutputStream stream) throws IOException {
-		Utils.writeUTF16StringToStream(stream, this.contactName);
-		Utils.writeUTF16StringToStream(stream, this.sender);
-		Utils.writeUTF16StringToStream(stream, this.message);
+		Utils.writePintoStringToStream(stream, this.contactName, NetworkHandler.USERNAME_MAX);
+		Utils.writePintoStringToStream(stream, this.sender, 16);
+		Utils.writePintoStringToStream(stream, this.message, 512);
 	}
 
 	@Override

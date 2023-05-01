@@ -220,18 +220,33 @@ public class Utils {
 		return value;
 	}
 	
-	public static String readUTF16StringFromStream(DataInputStream stream) throws IOException {
-	    short length = stream.readShort();
+	public static String readPintoStringFromStream(DataInputStream stream, int maxLength) throws IOException {
+	    int length = stream.readInt();
+	    if (length < 0) 
+	    	throw new IOException("Weird string, the length is less than 0!");
 	    if (length < 1) return "";
+	    
 	    byte[] buffer = new byte[length];
 	    stream.read(buffer);
-	    return new String(buffer, StandardCharsets.UTF_16BE);
+	    
+	    String str = new String(buffer, StandardCharsets.UTF_16BE);
+	    if (str.length() > maxLength)
+	    	throw new IllegalArgumentException(String.format(
+	    			"Read more data than allowed! (%d > %d)", 
+	    			str.length(), maxLength));
+	    
+	    return str;
 	}
 	
-	public static void writeUTF16StringToStream(DataOutputStream stream, String str) throws IOException {
+	public static void writePintoStringToStream(DataOutputStream stream, 
+			String str, int maxLength) throws IOException {
+	    if (str.length() > maxLength)
+	    	str = str.substring(0, maxLength - 1);
 	    byte[] stringData = str.getBytes(StandardCharsets.UTF_16BE);
-		stream.writeShort((short)stringData.length);
+	    
+		stream.writeInt(stringData.length);
 	    if (stringData.length < 1) return;
+	    
 	    stream.write(stringData);
 	}
 }

@@ -24,17 +24,17 @@ public class PacketRegister implements Packet {
 	@Override
 	public void read(DataInputStream stream) throws IOException {
 		this.protocolVersion = (byte) stream.read();
-		this.clientVersion = Utils.readUTF16StringFromStream(stream);
-		this.name = Utils.readUTF16StringFromStream(stream);
-		this.passwordHash = Utils.readUTF16StringFromStream(stream);
+		this.clientVersion = Utils.readPintoStringFromStream(stream, 32);
+		this.name = Utils.readPintoStringFromStream(stream, NetworkHandler.USERNAME_MAX);
+		this.passwordHash = Utils.readPintoStringFromStream(stream, 64);
 	}
 	
 	@Override
 	public void write(DataOutputStream stream) throws IOException {
 		stream.write(this.protocolVersion);
-		Utils.writeUTF16StringToStream(stream, this.clientVersion);
-		Utils.writeUTF16StringToStream(stream, this.name);
-		Utils.writeUTF16StringToStream(stream, this.passwordHash);
+		Utils.writePintoStringToStream(stream, this.clientVersion, 32);
+		Utils.writePintoStringToStream(stream, this.name, 16);
+		Utils.writePintoStringToStream(stream, this.passwordHash, 64);
 	}
 
 	@Override

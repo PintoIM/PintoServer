@@ -19,13 +19,13 @@ public class PacketCallPartyInfo implements Packet {
     
 	@Override
 	public void read(DataInputStream stream) throws IOException {
-		this.ipAddress = Utils.readUTF16StringFromStream(stream);
+		this.ipAddress = Utils.readPintoStringFromStream(stream, 15);
 		this.port = stream.readInt();
 	}
 	
 	@Override
 	public void write(DataOutputStream stream) throws IOException {
-		Utils.writeUTF16StringToStream(stream, this.ipAddress);
+		Utils.writePintoStringToStream(stream, this.ipAddress, 15);
 		stream.writeInt(this.port);
 	}
 

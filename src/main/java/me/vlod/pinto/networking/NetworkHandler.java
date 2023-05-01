@@ -16,11 +16,11 @@ import me.vlod.pinto.networking.packet.PacketLogout;
 import me.vlod.pinto.networking.packet.PacketMessage;
 import me.vlod.pinto.networking.packet.PacketRegister;
 import me.vlod.pinto.networking.packet.PacketRemoveContact;
-import me.vlod.pinto.networking.packet.PacketShrimp;
 import me.vlod.pinto.networking.packet.PacketStatus;
 
 public class NetworkHandler {
 	public static final int PROTOCOL_VERSION = 12;
+	public static final int USERNAME_MAX = 16;
 	private PintoServer server;
 	public NetworkAddress networkAddress;
 	public NetworkClient networkClient;
@@ -68,10 +68,12 @@ public class NetworkHandler {
 	}
 	
 	public void addToSendQueue(Packet packet) {
-		PintoServer.logger.info("Adding packet %s (%d) to %s (%s)'s send queue", 
-				packet.getClass().getSimpleName().toUpperCase(),
-				packet.getID(), this.networkAddress,
-    			(this.userName != null ? this.userName : "** UNAUTHENTICATED **"));
+		if (packet.getID() != 255) {
+			PintoServer.logger.info("Adding packet %s (%d) to %s (%s)'s send queue", 
+					packet.getClass().getSimpleName().toUpperCase(),
+					packet.getID(), this.networkAddress,
+	    			(this.userName != null ? this.userName : "** UNAUTHENTICATED **"));	
+		}
 		this.networkClient.addToSendQueue(packet);
 	}
 	
@@ -83,7 +85,7 @@ public class NetworkHandler {
 			return;
 		}
 		
-		this.addToSendQueue(new PacketShrimp());
+		//this.addToSendQueue(new PacketShrimp());
 	}
 
 	private void performSync() {

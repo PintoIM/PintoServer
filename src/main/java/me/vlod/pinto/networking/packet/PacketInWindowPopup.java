@@ -18,12 +18,12 @@ public class PacketInWindowPopup implements Packet {
     
 	@Override
 	public void read(DataInputStream stream) throws IOException {
-		this.message = Utils.readUTF16StringFromStream(stream);
+		this.message = Utils.readPintoStringFromStream(stream, 256);
 	}
 	
 	@Override
 	public void write(DataOutputStream stream) throws IOException {
-		Utils.writeUTF16StringToStream(stream, this.message);
+		Utils.writePintoStringToStream(stream, this.message, 256);
 	}
 
 	@Override
