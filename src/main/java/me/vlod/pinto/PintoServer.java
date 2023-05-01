@@ -366,7 +366,7 @@ public class PintoServer implements Runnable {
 		PintoServer pintoServer = new PintoServer();
 		
 		// Create the graphical console if we aren't in a headless environment
-		if (!GraphicsEnvironment.isHeadless()) {
+		if (!GraphicsEnvironment.isHeadless() && System.getProperty("pinto.noGUI") == null) {
 			pintoServer.console = new Console();
 			pintoServer.console.onSubmit = new Delegate() {
 				@Override
