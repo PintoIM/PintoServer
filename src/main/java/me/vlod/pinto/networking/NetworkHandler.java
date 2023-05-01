@@ -16,6 +16,7 @@ import me.vlod.pinto.networking.packet.PacketLogout;
 import me.vlod.pinto.networking.packet.PacketMessage;
 import me.vlod.pinto.networking.packet.PacketRegister;
 import me.vlod.pinto.networking.packet.PacketRemoveContact;
+import me.vlod.pinto.networking.packet.PacketShrimp;
 import me.vlod.pinto.networking.packet.PacketStatus;
 
 public class NetworkHandler {
@@ -85,7 +86,7 @@ public class NetworkHandler {
 			return;
 		}
 		
-		//this.addToSendQueue(new PacketShrimp());
+		this.addToSendQueue(new PacketShrimp());
 	}
 
 	private void performSync() {
