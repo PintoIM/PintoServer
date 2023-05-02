@@ -93,6 +93,12 @@ public class PintoServer implements Runnable {
 				this.database.createTable(TABLE_NAME, columns);
 			}
 			
+			// Clean database
+			logger.info("Cleaning database...");
+			for (String[] row : this.database.getRows(TABLE_NAME)) {
+				new UserDatabaseEntry(this, row[0]).load();
+			}
+			
 			// Initialization
 			logger.info("Initializing...");
 			logger.info("This server will listen on " + MainConfig.instance.listenIP + 

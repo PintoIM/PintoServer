@@ -1,13 +1,13 @@
 package me.vlod.pinto;
 
-import java.util.ArrayList;
+import java.util.LinkedHashSet;
 
 public class UserDatabaseEntry {
 	private PintoServer server;
 	private String userName;
 	public String passwordHash;
 	public UserStatus status = UserStatus.ONLINE;
-	public ArrayList<String> contacts = new ArrayList<String>();
+	public LinkedHashSet<String> contacts = new LinkedHashSet<String>();
 	
 	public UserDatabaseEntry(PintoServer server, String userName) {
 		this.server = server;
@@ -59,8 +59,10 @@ public class UserDatabaseEntry {
 			
 			if (!contactsRaw.equalsIgnoreCase("null")) {
 				for (String contact : contactsRaw.split(",")) {
+					if (this.contacts.contains(contact)) continue;
 					this.contacts.add(contact);
 				}
+				this.save();
 			}
 		} catch (Exception ex) {
 			PintoServer.logger.throwable(ex);

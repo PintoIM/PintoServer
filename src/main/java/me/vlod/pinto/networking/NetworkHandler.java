@@ -143,9 +143,11 @@ public class NetworkHandler {
 	}
 
 	public void handleLoginPacket(PacketLogin packet) {
-		NetHandlerUtils.performModerationChecks(this, packet.name);
-		NetHandlerUtils.performProtocolCheck(this, packet.protocolVersion, packet.clientVersion);
-		NetHandlerUtils.performNameVerification(this, packet.name);
+		if (!NetHandlerUtils.performModerationChecks(this, packet.name) || 
+			!NetHandlerUtils.performProtocolCheck(this, packet.protocolVersion, packet.clientVersion) ||
+			!NetHandlerUtils.performNameVerification(this, packet.name)) {
+			return;
+		}
 		
     	// Check if the user name is already used
     	if (this.server.getHandlerByName(packet.name) != null) {
@@ -171,7 +173,7 @@ public class NetworkHandler {
     		this.kick("Invalid password!");
     		return;
     	}
-
+    	
     	// Mark the client as logged in
     	this.loggedIn = true;
     	
@@ -193,9 +195,11 @@ public class NetworkHandler {
     }
 
 	public void handleRegisterPacket(PacketRegister packet) {
-		NetHandlerUtils.performModerationChecks(this, packet.name);
-		NetHandlerUtils.performProtocolCheck(this, packet.protocolVersion, packet.clientVersion);
-		NetHandlerUtils.performNameVerification(this, packet.name);
+		if (!NetHandlerUtils.performModerationChecks(this, packet.name) || 
+			!NetHandlerUtils.performProtocolCheck(this, packet.protocolVersion, packet.clientVersion) ||
+			!NetHandlerUtils.performNameVerification(this, packet.name)) {
+			return;
+		}
 		
     	this.protocolVersion = packet.protocolVersion;
     	this.clientVersion = packet.clientVersion;

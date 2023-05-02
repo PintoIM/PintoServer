@@ -22,7 +22,6 @@ public class NetworkClient {
     private Thread sendThread;
     public Delegate disconnected = Delegate.empty;
     public Delegate receivedPacket = Delegate.empty;
-    private Object sendQueueLock = new Object();
     private LinkedList<Packet> packetSendQueue = new LinkedList<Packet>();
     
     public NetworkClient(Socket socket) {
@@ -92,33 +91,27 @@ public class NetworkClient {
 
     public void addToSendQueue(Packet packet) {
     	if (!this.isConnected) return;
-    	synchronized (this.sendQueueLock) {
-    		this.packetSendQueue.add(packet);
-    	}
+    	this.packetSendQueue.add(packet);
     }
 
     public void clearSendQueue() {
-    	synchronized (this.sendQueueLock) {
-    		this.packetSendQueue.clear();
-    	}
+    	this.packetSendQueue.clear();
     }
     
     public void flushSendQueue() {
     	if (!this.isConnected) return;
     	
-    	synchronized (this.sendQueueLock) {
-        	for (Packet packet : this.packetSendQueue.toArray(new Packet[0])) {
-        		this.packetSendQueue.remove(packet);
-            	try {
-            		if (!this.isConnected) return;
-            		if (packet == null) continue;
-            		this.outputStream.write(packet.getID());
-        			packet.write(this.outputStream);
-        			this.outputStream.flush();
-        		} catch (Exception ex) {
-        			PintoServer.logger.throwable(ex);
-        		}
-        	}
+    	for (Packet packet : this.packetSendQueue.toArray(new Packet[0])) {
+    		this.packetSendQueue.remove(packet);
+        	try {
+        		if (!this.isConnected) return;
+        		if (packet == null) continue;
+        		this.outputStream.write(packet.getID());
+    			packet.write(this.outputStream);
+    			this.outputStream.flush();
+    		} catch (Exception ex) {
+    			PintoServer.logger.throwable(ex);
+    		}
     	}
     }
     
@@ -159,9 +152,7 @@ public class NetworkClient {
     
     private void sendThread_Func() {
     	while (this.isConnected) {
-    		synchronized (this.sendQueueLock) {
-    			this.flushSendQueue();
-    		}
+    		this.flushSendQueue();
     		
 			// Make the loop sleep to prevent high CPU usage
     		// Also here to allow the send queue to work
