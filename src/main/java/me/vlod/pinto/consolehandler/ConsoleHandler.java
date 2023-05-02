@@ -14,6 +14,7 @@ import me.vlod.pinto.consolehandler.commands.GetIPCMD;
 import me.vlod.pinto.consolehandler.commands.KickCMD;
 import me.vlod.pinto.consolehandler.commands.KickIPCMD;
 import me.vlod.pinto.consolehandler.commands.ReloadCMD;
+import me.vlod.pinto.consolehandler.commands.StopCMD;
 import me.vlod.pinto.consolehandler.commands.UnbanCMD;
 import me.vlod.pinto.consolehandler.commands.UnbanIPCMD;
 
@@ -34,6 +35,7 @@ public class ConsoleHandler {
     	this.commands.add(new ReloadCMD());
     	this.commands.add(new UnbanCMD());
     	this.commands.add(new UnbanIPCMD());
+    	this.commands.add(new StopCMD());
     }
 
 	public void handleInput(String input) {

@@ -210,7 +210,19 @@ public class PintoServer implements Runnable {
 	}
 	
 	public void stop() {
+		this.stop(null);
+	}
+	
+	public void stop(String kickReason) {
 		logger.info("Stopping...");
+		
+		// Kick everyone online
+		if (kickReason == null || kickReason.isEmpty()) {
+			kickReason = "Server shutting down!";
+		} else {
+			kickReason = String.format("Server shutting down: %s", kickReason);
+		}
+		this.disconnectAllClients(kickReason);
 		
 		// Set running to false to tell every permanent loop to stop
 		this.running = false;
