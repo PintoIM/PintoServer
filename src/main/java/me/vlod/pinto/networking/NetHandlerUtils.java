@@ -1,5 +1,6 @@
 package me.vlod.pinto.networking;
 
+import me.vlod.pinto.ClientUpdateCheck;
 import me.vlod.pinto.UserStatus;
 import me.vlod.pinto.configuration.BannedConfig;
 import me.vlod.pinto.configuration.MainConfig;
@@ -12,7 +13,6 @@ public class NetHandlerUtils {
     		!WhitelistConfig.instance.ips.contains(handler.networkAddress.ip) &&
     		!WhitelistConfig.instance.users.contains(username)) {
     		handler.kick("You are not white-listed!");
-    		return;
     	}
     	
 		String bannedReason = BannedConfig.instance.users.get(username);
@@ -21,10 +21,8 @@ public class NetHandlerUtils {
 		// Check if either the user name or IP are banned
     	if (bannedReason != null) {
     		handler.kick("You are banned from this chat!\nReason: " + bannedReason);
-    		return;
     	} else if (bannedReasonIP != null) {
     		handler.kick("You are banned from this chat based on your IP address!\nReason: " + bannedReasonIP);
-    		return;
     	}
 	}
 	
@@ -33,16 +31,21 @@ public class NetHandlerUtils {
     		handler.kick("Illegal username!\n"
     				+ "Legal usernames must have a length of at least 3 and at most 16\n"
     				+ "Legal usernames may only contain lowercase alphanumeric characters, underscores and dots");
-    		return;
     	}
 	}
 	
-	public static void performProtocolCheck(NetworkHandler handler, byte protocol) {
-    	// Check if the client protocol is not PROTOCOL_VERSION
+	public static void performProtocolCheck(NetworkHandler handler, byte protocol, String clientVersion) {
+		// Check if the client protocol is not PROTOCOL_VERSION
     	if (protocol != NetworkHandler.PROTOCOL_VERSION) {
-    		handler.kick(String.format("Illegal protocol version!\nMust be %d, but got %d", 
+    		handler.kick(String.format("Illegal protocol version!\nMust be %d, but got %d!\n"
+    				+ "Are you on the latest version of Pinto?", 
     				NetworkHandler.PROTOCOL_VERSION, protocol));
-    		return;
+    	}
+    	
+    	// Check if the client version is not supported
+    	if (!ClientUpdateCheck.isSupported(clientVersion)) {
+    		handler.kick(String.format("Your client version is unsupported!\n"
+    				+ "Please update to the latest version!"));
     	}
 	}
 	

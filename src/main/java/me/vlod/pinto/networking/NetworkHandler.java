@@ -1,5 +1,6 @@
 package me.vlod.pinto.networking;
 
+import me.vlod.pinto.ClientUpdateCheck;
 import me.vlod.pinto.Delegate;
 import me.vlod.pinto.PintoServer;
 import me.vlod.pinto.UserDatabaseEntry;
@@ -20,7 +21,7 @@ import me.vlod.pinto.networking.packet.PacketShrimp;
 import me.vlod.pinto.networking.packet.PacketStatus;
 
 public class NetworkHandler {
-	public static final int PROTOCOL_VERSION = 12;
+	public static final int PROTOCOL_VERSION = 13;
 	public static final int USERNAME_MAX = 16;
 	private PintoServer server;
 	public NetworkAddress networkAddress;
@@ -95,11 +96,13 @@ public class NetworkHandler {
 
 		for (String contact : this.databaseEntry.contacts) {
 			NetworkHandler netHandler = this.server.getHandlerByName(contact);
-			this.addToSendQueue(new PacketAddContact(contact));
+			this.addToSendQueue(new PacketAddContact(contact, 
+					(netHandler == null ?
+							UserStatus.OFFLINE : 
+								NetHandlerUtils.getToOthersStatus(
+										netHandler.databaseEntry.status))));
 			
 			if (netHandler != null) {
-				this.addToSendQueue(new PacketStatus(contact, 
-						NetHandlerUtils.getToOthersStatus(netHandler.databaseEntry.status)));
 				netHandler.addToSendQueue(new PacketStatus(this.userName, this.databaseEntry.status));
 			}
 		}
@@ -141,7 +144,7 @@ public class NetworkHandler {
 
 	public void handleLoginPacket(PacketLogin packet) {
 		NetHandlerUtils.performModerationChecks(this, packet.name);
-		NetHandlerUtils.performProtocolCheck(this, packet.protocolVersion);
+		NetHandlerUtils.performProtocolCheck(this, packet.protocolVersion, packet.clientVersion);
 		NetHandlerUtils.performNameVerification(this, packet.name);
 		
     	// Check if the user name is already used
@@ -179,11 +182,19 @@ public class NetworkHandler {
     	
     	// Sync the database to the user
     	this.performSync();
+    	
+    	// Check if the client is not the latest to send a notice
+    	if (!ClientUpdateCheck.isLatest(this.clientVersion)) {
+    		this.addToSendQueue(new PacketInWindowPopup("Your client version is not the latest,"
+    				+ " upgrade to the latest version to get the most recent features and bug fixes!"));
+        	PintoServer.logger.warn("%s has an older client than the latest!", 
+        			this.userName, this.clientVersion);
+    	}
     }
 
 	public void handleRegisterPacket(PacketRegister packet) {
 		NetHandlerUtils.performModerationChecks(this, packet.name);
-		NetHandlerUtils.performProtocolCheck(this, packet.protocolVersion);
+		NetHandlerUtils.performProtocolCheck(this, packet.protocolVersion, packet.clientVersion);
 		NetHandlerUtils.performNameVerification(this, packet.name);
 		
     	this.protocolVersion = packet.protocolVersion;
@@ -258,7 +269,7 @@ public class NetworkHandler {
     	
 		this.databaseEntry.contacts.remove(packet.contactName);
 		this.databaseEntry.save();
-		this.performSync();
+		this.addToSendQueue(new PacketRemoveContact(packet.contactName));
 		
 		UserDatabaseEntry contactDatabaseEntry = new UserDatabaseEntry(this.server, packet.contactName);
 		contactDatabaseEntry.load();
@@ -270,7 +281,7 @@ public class NetworkHandler {
 			return;
 		}
 		contactNetHandler.databaseEntry = contactDatabaseEntry;
-		contactNetHandler.performSync();
+		contactNetHandler.addToSendQueue(new PacketRemoveContact(this.userName));
 	}
 	
 	public void handleStatusPacket(PacketStatus packet) {
@@ -288,10 +299,13 @@ public class NetworkHandler {
 		String requesterNotification = "";
 		
 		if (answer.equalsIgnoreCase("yes")) {
+			if (this.databaseEntry.contacts.contains(requester)) {
+				return;
+			}
+			
 			this.databaseEntry.contacts.add(requester);
 			this.databaseEntry.save();
-			this.performSync();
-			
+
 			UserDatabaseEntry requesterDatabaseEntry = new UserDatabaseEntry(this.server, requester);
 			requesterDatabaseEntry.load();
 			requesterDatabaseEntry.contacts.add(this.userName);
@@ -303,64 +317,19 @@ public class NetworkHandler {
 		}
 		
 		NetworkHandler requesterNetHandler = this.server.getHandlerByName(requester);
+		this.addToSendQueue(new PacketAddContact(requester, 
+				(requesterNetHandler == null ?
+						UserStatus.OFFLINE : 
+							NetHandlerUtils.getToOthersStatus(
+									requesterNetHandler.databaseEntry.status))));
+		
 		if (requesterNetHandler == null) {
 			return;
 		}
+		
 		requesterNetHandler.databaseEntry.load();
-		requesterNetHandler.performSync();
+		requesterNetHandler.addToSendQueue(new PacketAddContact(this.userName, 
+				NetHandlerUtils.getToOthersStatus(this.databaseEntry.status)));
 		requesterNetHandler.addToSendQueue(new PacketInWindowPopup(requesterNotification));
 	}
-	
-	/*
-	public void handleCallStartPacket(PacketCallStart packet) {
-		NetworkHandler contactNetHandler = this.server.getHandlerByName(packet.contactName);
-		
-		if (contactNetHandler == null) {
-			this.addToSendQueue(new PacketInWindowPopup(String.format(
-					"%s is offline and may not receive calls", packet.contactName)));
-			this.addToSendQueue(new PacketCallEnd());
-			return;
-		}
-		
-		contactNetHandler.addToSendQueue(new PacketCallRequest(this.userName));
-	}
-	
-	public void handleCallRequestPacket(PacketCallRequest packet) {
-		String[] contactNameSplitted = packet.contactName.split(":");
-		String target = contactNameSplitted[0];
-		String answer = contactNameSplitted[1];
-		NetworkHandler targetNetHandler = this.server.getHandlerByName(target);
-
-		if (answer.equalsIgnoreCase("yes")) {
-			this.inCall = true;
-			this.inCallWith = target;
-			targetNetHandler.inCall = true;
-			targetNetHandler.inCallWith = this.userName;
-		} else if (answer.equalsIgnoreCase("no")) {
-			targetNetHandler.addToSendQueue(new PacketCallEnd());
-		}
-	}
-
-	public void handleCallPartyInfoPacket(PacketCallPartyInfo packet) {
-		// FIXME: Make this actually work
-		NetworkHandler targetNetHandler = this.server.getHandlerByName(this.inCallWith);
-		if (targetNetHandler == null) {
-			return;
-		}
-		targetNetHandler.addToSendQueue(new PacketCallPartyInfo(this.networkAddress.ip, packet.port));
-	}
-
-	public void handleCallEndPacket(PacketCallEnd packet) {
-		NetworkHandler targetNetHandler = this.server.getHandlerByName(this.inCallWith);
-		
-		this.inCall = false;
-		this.inCallWith = null;
-		
-		if (targetNetHandler == null) {
-			return;
-		}
-		targetNetHandler.addToSendQueue(new PacketCallEnd());
-		targetNetHandler.inCall = false;
-		targetNetHandler.inCallWith = null;
-	}*/
 }
