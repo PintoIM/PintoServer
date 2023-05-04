@@ -22,7 +22,11 @@ public class NetworkClient {
     private Thread sendThread;
     public Delegate disconnected = Delegate.empty;
     public Delegate receivedPacket = Delegate.empty;
+    private Object sendQueueLock = new Object();
+    private Object sendQueueLock2 = new Object();
     private LinkedList<Packet> packetSendQueue = new LinkedList<Packet>();
+    private LinkedList<Packet> packetSendQueue2 = new LinkedList<Packet>();
+    private boolean flushingSendQueue;
     
     public NetworkClient(Socket socket) {
         try {
@@ -91,27 +95,64 @@ public class NetworkClient {
 
     public void addToSendQueue(Packet packet) {
     	if (!this.isConnected) return;
-    	this.packetSendQueue.add(packet);
+    	
+    	if (this.flushingSendQueue) {
+    		synchronized (this.sendQueueLock2) {
+    			this.packetSendQueue2.add(packet);
+    		}
+    	} else {
+    		synchronized (this.sendQueueLock) {
+    			this.packetSendQueue.add(packet);
+    		}
+    	}
     }
 
     public void clearSendQueue() {
-    	this.packetSendQueue.clear();
+    	synchronized (this.sendQueueLock) {
+    		this.packetSendQueue.clear();
+    	}
+    	synchronized (this.sendQueueLock2) {
+    		this.packetSendQueue2.clear();
+    	}
     }
     
     public void flushSendQueue() {
     	if (!this.isConnected) return;
+    	this.flushingSendQueue = true;
     	
-    	for (Packet packet : this.packetSendQueue.toArray(new Packet[0])) {
-    		this.packetSendQueue.remove(packet);
+    	synchronized (this.sendQueueLock) {
+        	for (Packet packet : this.packetSendQueue.toArray(new Packet[0])) {
+            	try {
+            		if (!this.isConnected) return;
+            		if (packet == null) continue;
+            		this.outputStream.write(packet.getID());
+        			packet.write(this.outputStream);
+        		} catch (Exception ex) {
+        			PintoServer.logger.throwable(ex);
+        		}
+        	}
+        	
         	try {
-        		if (!this.isConnected) return;
-        		if (packet == null) continue;
-        		this.outputStream.write(packet.getID());
-    			packet.write(this.outputStream);
     			this.outputStream.flush();
     		} catch (Exception ex) {
     			PintoServer.logger.throwable(ex);
     		}
+        	this.packetSendQueue.clear();
+    	}
+    	synchronized (this.sendQueueLock2) {
+    		this.mergeSecondSendQueue();
+    	}
+    	
+    	this.flushingSendQueue = false;
+    }
+    
+    private void mergeSecondSendQueue() {
+    	synchronized (this.sendQueueLock2) {
+        	synchronized (this.sendQueueLock) {
+            	for (Packet packet : this.packetSendQueue2.toArray(new Packet[0])) {
+            		this.packetSendQueue.add(packet);
+            	}
+        	}
     	}
     }
     
@@ -157,7 +198,7 @@ public class NetworkClient {
 			// Make the loop sleep to prevent high CPU usage
     		// Also here to allow the send queue to work
     		try {
-				Thread.sleep(1);
+				Thread.sleep(100);
 			} catch (Exception ex) {
 				PintoServer.logger.throwable(ex);
 			}
