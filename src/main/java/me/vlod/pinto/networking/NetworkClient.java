@@ -14,7 +14,6 @@ import me.vlod.pinto.networking.packet.Packet;
 import me.vlod.pinto.networking.packet.Packets;
 
 public class NetworkClient {
-    private boolean noDisconnectEvent;
     public boolean isConnected;
     private Socket socket;
     private DataInputStream inputStream;
@@ -45,22 +44,8 @@ public class NetworkClient {
     }
     
     public void disconnect(String reason) {
-        boolean noDisconnectEventValue = this.noDisconnectEvent;
-        this.noDisconnectEvent = true;
-        
-        if (this.inputStream != null) {
-			try {
-				this.inputStream.close();
-			} catch (Exception ex) {
-			}
-        }
-        
-        if (this.outputStream != null) {
-			try {
-				this.outputStream.close();
-			} catch (Exception ex) {
-			}
-        }
+    	if (!this.isConnected) return;
+    	this.isConnected = false;
 
         if (this.socket != null) {
 			try {
@@ -68,16 +53,13 @@ public class NetworkClient {
 			} catch (Exception ex) {
 			}	
         }
-
+        
         this.socket = null;
         this.inputStream = null;
         this.outputStream = null;
         this.readThread = null;
         
-        if (this.isConnected && !noDisconnectEventValue) {
-            this.disconnected.call(reason);
-        }
-        this.isConnected = false;
+        this.disconnected.call(reason);
     }
 
     public void sendPacket(Packet packet) {
