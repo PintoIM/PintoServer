@@ -43,4 +43,11 @@ public class PacketMessage implements Packet {
 	public void handle(NetworkHandler netHandler) {
 		netHandler.handleMessagePacket(this);
 	}
+
+	@Override
+	public int getSize() {
+		return Utils.getPintoStringSize(contactName) + 
+				Utils.getPintoStringSize(sender) + 
+				Utils.getPintoStringSize(message);
+	}
 }

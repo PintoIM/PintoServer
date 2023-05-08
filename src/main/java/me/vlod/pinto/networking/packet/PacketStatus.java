@@ -40,4 +40,9 @@ public class PacketStatus implements Packet {
 	public void handle(NetworkHandler netHandler) {
 		netHandler.handleStatusPacket(this);
 	}
+
+	@Override
+	public int getSize() {
+		return Utils.getPintoStringSize(contactName) + 4;
+	}
 }

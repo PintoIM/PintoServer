@@ -1,11 +1,12 @@
 package me.vlod.pinto.networking;
 
+import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketException;
-import java.util.LinkedList;
+import java.nio.charset.StandardCharsets;
 
 import me.vlod.pinto.Delegate;
 import me.vlod.pinto.PintoServer;
@@ -19,14 +20,9 @@ public class NetworkClient {
     private DataInputStream inputStream;
     private DataOutputStream outputStream;
     private Thread readThread;
-    private Thread sendThread;
     public Delegate disconnected = Delegate.empty;
     public Delegate receivedPacket = Delegate.empty;
-    private Object sendQueueLock = new Object();
-    private Object sendQueueLock2 = new Object();
-    private LinkedList<Packet> packetSendQueue = new LinkedList<Packet>();
-    private LinkedList<Packet> packetSendQueue2 = new LinkedList<Packet>();
-    private boolean flushingSendQueue;
+    private Object sendLock = new Object();
     
     public NetworkClient(Socket socket) {
         try {
@@ -43,14 +39,6 @@ public class NetworkClient {
             	}
             };
             this.readThread.start();
-            
-            this.sendThread = new Thread("Client-Send-Thread") {
-            	@Override
-            	public void run() {
-            		sendThread_Func();
-            	}
-            };
-            this.sendThread.start();
         } catch (Exception ex) {
             this.disconnect(null);
         }
@@ -85,7 +73,6 @@ public class NetworkClient {
         this.inputStream = null;
         this.outputStream = null;
         this.readThread = null;
-        this.sendThread = null;
         
         if (this.isConnected && !noDisconnectEventValue) {
             this.disconnected.call(reason);
@@ -93,92 +80,72 @@ public class NetworkClient {
         this.isConnected = false;
     }
 
-    public void addToSendQueue(Packet packet) {
+    public void sendPacket(Packet packet) {
     	if (!this.isConnected) return;
-    	
-    	if (this.flushingSendQueue) {
-    		synchronized (this.sendQueueLock2) {
-    			this.packetSendQueue2.add(packet);
-    		}
-    	} else {
-    		synchronized (this.sendQueueLock) {
-    			this.packetSendQueue.add(packet);
-    		}
+
+    	try {
+        	synchronized (this.sendLock) {
+        		// Header
+        		this.outputStream.write("PMSG".getBytes(StandardCharsets.US_ASCII));
+        		
+        		// Size
+        		this.outputStream.writeInt(packet.getSize());
+        		
+        		// ID
+        		this.outputStream.writeInt(packet.getID());
+        		
+        		if (packet.getSize() > 0) {
+            		// Data
+            		packet.write(this.outputStream);
+        		}
+        		
+        		this.outputStream.flush();
+        	}
+    	} catch (Exception ex) {
+            this.disconnect(String.format("Internal error (%s)", ex.getMessage()));
+            PintoServer.logger.throwable(ex);
     	}
     }
 
-    public void clearSendQueue() {
-    	synchronized (this.sendQueueLock) {
-    		this.packetSendQueue.clear();
-    	}
-    	synchronized (this.sendQueueLock2) {
-    		this.packetSendQueue2.clear();
-    	}
-    }
-    
-    public void flushSendQueue() {
-    	if (!this.isConnected) return;
-    	this.flushingSendQueue = true;
-    	
-    	synchronized (this.sendQueueLock) {
-        	for (Packet packet : this.packetSendQueue.toArray(new Packet[0])) {
-            	try {
-            		if (!this.isConnected) return;
-            		if (packet == null) continue;
-            		this.outputStream.write(packet.getID());
-        			packet.write(this.outputStream);
-        		} catch (Exception ex) {
-        			PintoServer.logger.throwable(ex);
-        		}
-        	}
-        	
-        	try {
-    			this.outputStream.flush();
-    		} catch (Exception ex) {
-    			PintoServer.logger.throwable(ex);
-    		}
-        	this.packetSendQueue.clear();
-    	}
-    	synchronized (this.sendQueueLock2) {
-    		this.mergeSecondSendQueue();
-    	}
-    	
-    	this.flushingSendQueue = false;
-    }
-    
-    private void mergeSecondSendQueue() {
-    	synchronized (this.sendQueueLock2) {
-        	synchronized (this.sendQueueLock) {
-            	for (Packet packet : this.packetSendQueue2.toArray(new Packet[0])) {
-            		this.packetSendQueue.add(packet);
-            	}
-        	}
-    	}
-    }
-    
     private void readThread_Func() {
     	while (this.isConnected) {
     		try {
-				int packetID = this.inputStream.read();
-				Packet packet = Packets.getPacketByID(packetID);
-				
-				if (packetID != -1) {
-					if (packet != null) {
-	                    packet.read(this.inputStream);
-	                    this.receivedPacket.call(packet);
-					} else {
-						throw new SocketException(String.format("Received invalid packet (%d)", packetID));
-					}
-				} else {
-					throw new SocketException("Client disconnect");
-    			}
-				
-				// Make the loop sleep to prevent high CPU usage
-	    		try {
-					Thread.sleep(1);
-				} catch (Exception ex) {
-					PintoServer.logger.throwable(ex);
-				}
+                int headerPart0 = inputStream.read();
+                int headerPart1 = inputStream.read();
+                int headerPart2 = inputStream.read();
+                int headerPart3 = inputStream.read();
+                
+                if (headerPart0 == -1 || 
+                	headerPart1 == -1 || 
+                	headerPart2 == -1 || 
+                	headerPart3 == -1) 
+                	throw new SocketException("Client disconnect");
+                
+                // PMSG
+                if (headerPart0 != 0x50 || 
+                	headerPart1 != 0x4d || 
+                	headerPart2 != 0x53 || 
+                	headerPart3 != 0x47) {
+                	throw new SocketException("Bad packet header!");
+                }
+
+                int size = inputStream.readInt();
+                int id = inputStream.readInt();
+                Packet packet = Packets.getPacketByID(id);
+
+                if (packet == null) {
+                	throw new SocketException("Bad packet ID: {id}");
+                }
+
+                if (size > 0) {
+                    byte[] data = inputStream.readNBytes(size);
+                    DataInputStream tempReader = new DataInputStream(new ByteArrayInputStream(data));
+                    packet.read(tempReader);
+                    tempReader.close();
+                }
+
+                receivedPacket.call(packet);
+                Thread.sleep(1);
     		} catch (Exception ex) {
                 if (!(ex instanceof IOException || ex instanceof SocketException)) {
                     this.disconnect(String.format("Internal error (%s)", ex.getMessage()));
@@ -188,20 +155,6 @@ public class NetworkClient {
                 }
                 return;
     		}
-    	}
-    }
-    
-    private void sendThread_Func() {
-    	while (this.isConnected) {
-    		this.flushSendQueue();
-    		
-			// Make the loop sleep to prevent high CPU usage
-    		// Also here to allow the send queue to work
-    		try {
-				Thread.sleep(100);
-			} catch (Exception ex) {
-				PintoServer.logger.throwable(ex);
-			}
     	}
     }
 }

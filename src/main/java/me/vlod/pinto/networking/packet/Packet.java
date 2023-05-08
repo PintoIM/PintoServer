@@ -11,4 +11,5 @@ public interface Packet {
     public void write(DataOutputStream stream) throws IOException;
     public void handle(NetworkHandler netHandler);
     public int getID();
+    public int getSize();
 }

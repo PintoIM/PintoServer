@@ -46,4 +46,11 @@ public class PacketRegister implements Packet {
 	public void handle(NetworkHandler netHandler) {
 		netHandler.handleRegisterPacket(this);
 	}
+
+	@Override
+	public int getSize() {
+		return 1 + Utils.getPintoStringSize(clientVersion) + 
+				Utils.getPintoStringSize(name) + 
+				Utils.getPintoStringSize(passwordHash);
+	}
 }

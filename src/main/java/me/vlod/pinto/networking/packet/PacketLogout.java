@@ -34,4 +34,9 @@ public class PacketLogout implements Packet {
 	@Override
 	public void handle(NetworkHandler netHandler) {
 	}
+
+	@Override
+	public int getSize() {
+		return Utils.getPintoStringSize(reason);
+	}
 }

@@ -35,4 +35,9 @@ public class PacketRemoveContact implements Packet {
 	public void handle(NetworkHandler netHandler) {
 		netHandler.handleRemoveContactPacket(this);
 	}
+
+	@Override
+	public int getSize() {
+		return Utils.getPintoStringSize(contactName);
+	}
 }

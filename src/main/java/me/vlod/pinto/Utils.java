@@ -249,5 +249,9 @@ public class Utils {
 	    
 	    stream.write(stringData);
 	}
+	
+	public static int getPintoStringSize(String str) {
+		return 4 + str.getBytes(StandardCharsets.UTF_16BE).length;
+	}
 }
 
