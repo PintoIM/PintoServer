@@ -4,11 +4,12 @@ plugins {
 }
 
 group "me.vlod"
-version "a1.4.1"
+version "a1.5"
 
 repositories {
     mavenCentral()
     gradlePluginPortal()
+    maven { url 'https://jitpack.io' }
 }
 
 dependencies {
@@ -17,12 +18,7 @@ dependencies {
 	implementation "org.json:json:20220320"
 	implementation "org.yaml:snakeyaml:1.33"
 	implementation "org.xerial:sqlite-jdbc:3.40.1.0"
-}
-
-java {
-    sourceCompatibility JavaVersion.VERSION_1_8
-    targetCompatibility JavaVersion.VERSION_1_8
-    withSourcesJar()
+	implementation 'com.github.vlOd2:HottyEvents:main-SNAPSHOT'
 }
 
 jar {
@@ -33,4 +29,31 @@ jar {
 
 build {
     dependsOn shadowJar
+}
+
+task javadocJar(type: Jar, dependsOn: javadoc) {
+	from javadoc.destinationDir
+	classifier = 'javadoc'
+    group = 'build'
+    description = 'Assembles a jar archive containing the javadocs'
+}
+
+tasks {
+    javadoc {
+        (options as StandardJavadocDocletOptions).tags(
+	    	"apiNote:a:API Note:", 
+	        "implSpec:a:Implementation Requirements:", 
+	        "implNote:a:Implementation Note:"
+	    )
+    }
+}
+
+artifacts {
+    archives javadocJar
+}
+
+java {
+    sourceCompatibility JavaVersion.VERSION_1_8
+    targetCompatibility JavaVersion.VERSION_1_8
+    withSourcesJar()
 }

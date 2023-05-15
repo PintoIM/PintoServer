@@ -12,6 +12,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Scanner;
 
+import me.vlod.hottyevents.Event;
+import me.vlod.hottyevents.EventSender;
 import me.vlod.pinto.configuration.BannedConfig;
 import me.vlod.pinto.configuration.ConfigLoaderSaver;
 import me.vlod.pinto.configuration.MainConfig;
@@ -25,6 +27,7 @@ import me.vlod.pinto.networking.NetworkAddress;
 import me.vlod.pinto.networking.NetworkClient;
 import me.vlod.pinto.networking.NetworkHandler;
 import me.vlod.pinto.networking.packet.Packet;
+import me.vlod.pinto.plugin.PluginManager;
 import me.vlod.sql.SQLInterface;
 import me.vlod.sql.SQLiteInterface;
 
@@ -36,9 +39,11 @@ public class PintoServer implements Runnable {
 	public Console console;
 	public Scanner cliScanner;
 	public ConsoleHandler consoleHandler;
+	public SQLInterface database;
 	public ServerSocket serverSocket;
 	public final ArrayList<NetworkHandler> clients = new ArrayList<NetworkHandler>();
-	public SQLInterface database;
+	public PluginManager pluginManager;
+	public final EventSender<Event> eventSender = new EventSender<Event>();
 	
 	static {
 		// Logger setup
@@ -101,9 +106,8 @@ public class PintoServer implements Runnable {
 			
 			// Initialization
 			logger.info("Initializing...");
-			logger.info("This server will listen on " + MainConfig.instance.listenIP + 
-					":" + MainConfig.instance.listenPort + 
-					", you can change this in the configuration");
+			logger.info("The server will listen on %s:%d, you can change this in the configuration!",
+					MainConfig.instance.listenIP, MainConfig.instance.listenPort);
 			
 			// Set runnable to true, which will allow the loops to work
 			this.running = true;
@@ -111,15 +115,19 @@ public class PintoServer implements Runnable {
 			// usually when it can't bind to the port
 			this.serverSocket = new ServerSocket(MainConfig.instance.listenPort, 50, 
 					InetAddress.getByName(MainConfig.instance.listenIP));
-			// Create the CLI scanner only when the CLI is present
-			if (System.console() != null) {
+			// Create the CLI scanner only when the CLI is present or when it is forced
+			if (System.console() != null || System.getProperty("pinto.forceConsole") != null) {
 				this.cliScanner = new Scanner(System.in);
 			}
 			// Create the console handler that will handle console commands
 			this.consoleHandler = new ConsoleHandler(this, new ConsoleCaller(null));
 			
-			logger.info("Initialized! Listening on " + MainConfig.instance.listenIP + 
-					":" + MainConfig.instance.listenPort + "...");
+			logger.info("Loading plugins...");
+			this.pluginManager = new PluginManager();
+			this.pluginManager.loadPlugins(new File(MainConfig.instance.pluginsDir));
+			
+			logger.info("Initialized! Listening on %s:%d...", 
+					MainConfig.instance.listenIP, MainConfig.instance.listenPort);
 		} catch (Throwable throwable) {
 			logger.fatal("!!! STARTUP FAILURE !!!");
 			logger.fatal("The server wasn't able to start! Is there another server running?");
@@ -202,6 +210,7 @@ public class PintoServer implements Runnable {
 		while (this.running) {
 			// Handler CLI input
 			if (this.cliScanner != null) {
+				System.out.print("> ");
 				String cliInput = this.cliScanner.nextLine();
 				this.onConsoleSubmit(cliInput);	
 			}

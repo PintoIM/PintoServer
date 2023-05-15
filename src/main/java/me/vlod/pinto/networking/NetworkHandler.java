@@ -7,6 +7,12 @@ import me.vlod.pinto.UserDatabaseEntry;
 import me.vlod.pinto.UserStatus;
 import me.vlod.pinto.consolehandler.ConsoleCaller;
 import me.vlod.pinto.consolehandler.ConsoleHandler;
+import me.vlod.pinto.event.ClientConnectedEvent;
+import me.vlod.pinto.event.ClientDisconnectedEvent;
+import me.vlod.pinto.event.HandledPacketEvent;
+import me.vlod.pinto.event.ReceivedPacketEvent;
+import me.vlod.pinto.event.SendingPacketEvent;
+import me.vlod.pinto.event.SentPacketEvent;
 import me.vlod.pinto.networking.packet.Packet;
 import me.vlod.pinto.networking.packet.PacketAddContact;
 import me.vlod.pinto.networking.packet.PacketClearContacts;
@@ -57,19 +63,43 @@ public class NetworkHandler {
 		};
 		
 		PintoServer.logger.info("%s has connected", this.networkAddress);
+		ClientConnectedEvent event = new ClientConnectedEvent(this);
+		this.server.eventSender.send(event);
+		if (event.getCancelled()) {
+			this.networkClient.disconnect("Connected event cancelled");
+		}
 	}
 	
 	private void onReceivedPacket(Packet packet) {
-		this.handlePacket(packet);
+		ReceivedPacketEvent event = new ReceivedPacketEvent(this, packet);
+		this.server.eventSender.send(event);
+		if (event.getCancelled()) {
+			return;
+		}
+		
+		PintoServer.logger.info("Received packet %s (%d) from %s (%s)", 
+				packet.getClass().getSimpleName().toUpperCase(),
+				packet.getID(), this.networkAddress,
+    			(this.userName != null ? this.userName : "** UNAUTHENTICATED **"));
+		
+		packet.handle(this);
+		this.server.eventSender.send(new HandledPacketEvent(this, packet));
 	}
 	
 	private void onDisconnect(String reason) {
 		this.changeStatus(UserStatus.OFFLINE, true);
 		this.server.clients.remove(this);
 		PintoServer.logger.info("%s has disconnected: %s", this.networkAddress, reason);
+		this.server.eventSender.send(new ClientDisconnectedEvent(this, reason));
 	}
 	
 	public void sendPacket(Packet packet) {
+		SendingPacketEvent event = new SendingPacketEvent(this, packet);
+		this.server.eventSender.send(event);
+		if (event.getCancelled()) {
+			return;
+		}
+		
 		if (packet.getID() != 255) {
 			PintoServer.logger.info("Sent packet %s (%d) to %s (%s)", 
 					packet.getClass().getSimpleName().toUpperCase(),
@@ -77,6 +107,7 @@ public class NetworkHandler {
 	    			(this.userName != null ? this.userName : "** UNAUTHENTICATED **"));	
 		}
 		this.networkClient.sendPacket(packet);
+		this.server.eventSender.send(new SentPacketEvent(this, packet));
 	}
 	
 	public void onTick() {
@@ -131,14 +162,6 @@ public class NetworkHandler {
 					NetHandlerUtils.getToOthersStatus(status)));
 		}
     }
-    
-	public void handlePacket(Packet packet) {
-		PintoServer.logger.info("Received packet %s (%d) from %s (%s)", 
-				packet.getClass().getSimpleName().toUpperCase(),
-				packet.getID(), this.networkAddress,
-    			(this.userName != null ? this.userName : "** UNAUTHENTICATED **"));
-		packet.handle(this);
-	}
 
 	public void handleLoginPacket(PacketLogin packet) {
 		if (!NetHandlerUtils.performModerationChecks(this, packet.name) || 

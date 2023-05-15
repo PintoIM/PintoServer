@@ -246,3 +246,4 @@ gradle-app.setting
 ### On server run generated files ###
 *.yml
 *.db
+plugins/
