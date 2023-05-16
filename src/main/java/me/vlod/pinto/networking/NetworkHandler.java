@@ -133,7 +133,8 @@ public class NetworkHandler {
 								NetHandlerUtils.getToOthersStatus(
 										netHandler.databaseEntry.status))));
 			
-			if (netHandler != null) {
+			if (netHandler != null && 
+				NetHandlerUtils.getToOthersStatus(this.databaseEntry.status) != UserStatus.OFFLINE) {
 				netHandler.sendPacket(new PacketStatus(this.userName, this.databaseEntry.status));
 			}
 		}
@@ -231,6 +232,11 @@ public class NetworkHandler {
     		return;
     	}
     	
+    	if (!packet.passwordHash.matches(NetHandlerUtils.PASSWORD_REGEX_CHECK)) {
+    		this.kick("Illegal password hash! Attempted SQL injection?");
+    		return;
+    	}
+    	
     	// Create the database entry
     	this.databaseEntry = UserDatabaseEntry.registerAndReturnEntry(this.server, packet.name,
     			packet.passwordHash, UserStatus.ONLINE);
@@ -271,6 +277,11 @@ public class NetworkHandler {
     }
     
 	public void handleAddContactPacket(PacketAddContact packet) {
+		if (!packet.contactName.matches(NetHandlerUtils.USERNAME_REGEX_CHECK)) {
+			this.sendPacket(new PacketInWindowPopup("Invalid contact name specified"));
+			return;
+		}
+		
 		if (packet.contactName.equals(this.userName)) {
 			this.sendPacket(new PacketInWindowPopup("You may not add yourself to your contact list"));
 			return;

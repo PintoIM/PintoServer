@@ -7,6 +7,9 @@ import me.vlod.pinto.configuration.MainConfig;
 import me.vlod.pinto.configuration.WhitelistConfig;
 
 public class NetHandlerUtils {
+	public static final String USERNAME_REGEX_CHECK = "^(?=.{3,15}$)[a-zA-Z0-9._]+$";
+	public static final String PASSWORD_REGEX_CHECK = "^(?=.{64}$)[a-zA-Z0-9._]+$";
+	
 	public static boolean performModerationChecks(NetworkHandler handler, String username) {
 		// Check if either the user name or IP are not white-listed
     	if (MainConfig.instance.useWhiteList && 
@@ -31,7 +34,7 @@ public class NetHandlerUtils {
 	}
 	
 	public static boolean performNameVerification(NetworkHandler handler, String username) {
-    	if (!username.matches("^(?=.{3,15}$)[a-zA-Z0-9._]+$")) {
+    	if (!username.matches(USERNAME_REGEX_CHECK)) {
     		handler.kick("Illegal username!\n"
     				+ "Legal usernames must have a length of at least 3 and at most 16\n"
     				+ "Legal usernames may only contain alphanumeric characters,"

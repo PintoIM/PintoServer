@@ -10,6 +10,9 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 
+/**
+ * SQLite implementation of {@link SQLInterface}
+ */
 public class SQLiteInterface implements SQLInterface {
 	private Connection connection;
 	private DatabaseMetaData dbMetaData;
