@@ -2,27 +2,36 @@ package me.vlod.pinto;
 
 import java.awt.Color;
 import java.awt.GraphicsEnvironment;
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.PrintWriter;
+import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Scanner;
 
+import org.json.JSONObject;
+
 import me.vlod.hottyevents.Event;
 import me.vlod.hottyevents.EventSender;
 import me.vlod.pinto.configuration.BannedConfig;
 import me.vlod.pinto.configuration.ConfigLoaderSaver;
 import me.vlod.pinto.configuration.MainConfig;
-import me.vlod.pinto.configuration.OperatorConfig;
 import me.vlod.pinto.configuration.WhitelistConfig;
 import me.vlod.pinto.console.Console;
 import me.vlod.pinto.consolehandler.ConsoleCaller;
 import me.vlod.pinto.consolehandler.ConsoleHandler;
 import me.vlod.pinto.logger.Logger;
+import me.vlod.pinto.networking.NetHandlerUtils;
 import me.vlod.pinto.networking.NetworkAddress;
 import me.vlod.pinto.networking.NetworkClient;
 import me.vlod.pinto.networking.NetworkHandler;
@@ -178,7 +187,7 @@ public class PintoServer implements Runnable {
 		}.start();
 		
 		// Tick thread
-		new Thread("Tick thread") {
+		new Thread("Tick-Thread") {
 			public void run() {
 				long lastTime = 0;
 				
@@ -193,6 +202,27 @@ public class PintoServer implements Runnable {
 								logger.throwable(ex);
 							}
 						}
+						lastTime = System.currentTimeMillis();
+					}
+					
+					// Make the loop sleep to prevent high CPU usage
+		    		try {
+						Thread.sleep(1);
+					} catch (Exception ex) {
+						PintoServer.logger.throwable(ex);
+					}
+				}
+			}
+		}.start();
+		
+		// Heart beat thread
+		new Thread("Heartbeat-Thread") {
+			public void run() {
+				long lastTime = 0;
+				
+				while (running) {
+					if (System.currentTimeMillis() - lastTime > 45 * 1000) {
+						sendHeartbeat();
 						lastTime = System.currentTimeMillis();
 					}
 					
@@ -281,10 +311,6 @@ public class PintoServer implements Runnable {
 		cls = new ConfigLoaderSaver(BannedConfig.instance = new BannedConfig(), 
 				new File("banned.yml"));
 		cls.load();
-
-		cls = new ConfigLoaderSaver(OperatorConfig.instance = new OperatorConfig(), 
-				new File("operator.yml"));
-		cls.load();
 	}
 	
 	public void saveConfig() {
@@ -296,13 +322,81 @@ public class PintoServer implements Runnable {
 		
 		cls = new ConfigLoaderSaver(BannedConfig.instance, new File("banned.yml"));
 		cls.save();
-
-		cls = new ConfigLoaderSaver(OperatorConfig.instance, new File("operator.yml"));
-		cls.save();
 	}
 	
 	public void onConsoleSubmit(String input) {
 		this.consoleHandler.handleInput(input);
+	}
+	
+	public void sendHeartbeat() {
+		if (MainConfig.instance.heartbeatURL.trim().isEmpty()) {
+			return;
+		}
+		
+		try {
+			HttpURLConnection httpConnection = (HttpURLConnection) new URL(MainConfig.instance.heartbeatURL)
+					.openConnection();
+			httpConnection.setRequestMethod("POST");
+			httpConnection.setRequestProperty("User-Agent", "PintoServer");
+			httpConnection.setDoOutput(true);
+			httpConnection.setDoInput(true);
+			httpConnection.connect();
+
+			OutputStream outputStream = httpConnection.getOutputStream();
+			
+			int onlineClients = 0;
+			for (NetworkHandler client : this.clients) {
+				if (client.loggedIn && NetHandlerUtils
+						.getToOthersStatus(client.databaseEntry.status) != UserStatus.OFFLINE) {
+					onlineClients++;
+				}
+			}
+			
+			JSONObject payload = new JSONObject();
+			payload.put("name", MainConfig.instance.heartbeatName);
+			payload.put("port", MainConfig.instance.listenPort);
+			payload.put("users", onlineClients);
+			payload.put("max_users", MainConfig.instance.maxUsers);
+			
+			PrintWriter printWriter = new PrintWriter(outputStream);
+			printWriter.println(payload.toString());
+			printWriter.flush();
+
+			InputStream inputStream = null;
+			if (httpConnection.getResponseCode() == HttpURLConnection.HTTP_OK) {
+				inputStream = httpConnection.getInputStream();
+			} else {
+				inputStream = httpConnection.getErrorStream();
+			}
+			
+			BufferedReader bufferedReader = new BufferedReader(
+            		new InputStreamReader(inputStream));
+            StringBuilder stringBuilder = new StringBuilder();
+            String responseline;
+            
+            while ((responseline = bufferedReader.readLine()) != null) {
+                stringBuilder.append(String.format("%s\n", responseline));
+            }
+            
+            String responseRaw = stringBuilder.toString();
+            JSONObject response = new JSONObject(responseRaw);
+			
+            if (response.getString("status").equalsIgnoreCase("OK")) {
+            	logger.info("Successfully sent a heart beat");
+            } else if (response.getString("status").equalsIgnoreCase("error")) {
+            	logger.warn("Sent a heart beat, but the server replied with error \"%s\"",
+            			response.getString("error"));
+            } else {
+            	throw new IllegalStateException();
+            }
+            
+            printWriter.close();
+            bufferedReader.close();
+			httpConnection.disconnect();
+		} catch (Exception ex) {
+			logger.error("Unable to send a heart beat!");
+			logger.throwable(ex);
+		}
 	}
 	
 	public void banUser(String target, String reason, boolean ip) {

@@ -6,5 +6,8 @@ public class MainConfig implements Config {
 	public String listenIP = "0.0.0.0";
 	public String databaseFile = "pintoserver.db";
 	public boolean useWhiteList = false;
+	public int maxUsers = 128;
+	public String heartbeatName = "My Cool Pinto! Server";
 	public String pluginsDir = "plugins";
+	public String heartbeatURL = "http://api.fieme.net:8880/pinto-server-list/heartbeat.php";
 }

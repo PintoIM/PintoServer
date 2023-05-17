@@ -5,6 +5,7 @@ import me.vlod.pinto.Delegate;
 import me.vlod.pinto.PintoServer;
 import me.vlod.pinto.UserDatabaseEntry;
 import me.vlod.pinto.UserStatus;
+import me.vlod.pinto.configuration.MainConfig;
 import me.vlod.pinto.consolehandler.ConsoleCaller;
 import me.vlod.pinto.consolehandler.ConsoleHandler;
 import me.vlod.pinto.event.ClientConnectedEvent;
@@ -21,6 +22,7 @@ import me.vlod.pinto.networking.packet.PacketInWindowPopup;
 import me.vlod.pinto.networking.packet.PacketLogin;
 import me.vlod.pinto.networking.packet.PacketLogout;
 import me.vlod.pinto.networking.packet.PacketMessage;
+import me.vlod.pinto.networking.packet.PacketPopup;
 import me.vlod.pinto.networking.packet.PacketRegister;
 import me.vlod.pinto.networking.packet.PacketRemoveContact;
 import me.vlod.pinto.networking.packet.PacketShrimp;
@@ -63,6 +65,12 @@ public class NetworkHandler {
 		};
 		
 		PintoServer.logger.info("%s has connected", this.networkAddress);
+		
+		if (this.server.clients.size() > MainConfig.instance.maxUsers) {
+			this.kick("The server is full!");
+			return;
+		}
+		
 		ClientConnectedEvent event = new ClientConnectedEvent(this);
 		this.server.eventSender.send(event);
 		if (event.getCancelled()) {
@@ -91,6 +99,7 @@ public class NetworkHandler {
 		this.server.clients.remove(this);
 		PintoServer.logger.info("%s has disconnected: %s", this.networkAddress, reason);
 		this.server.eventSender.send(new ClientDisconnectedEvent(this, reason));
+		this.server.sendHeartbeat();
 	}
 	
 	public void sendPacket(Packet packet) {
@@ -183,7 +192,7 @@ public class NetworkHandler {
 
     	// Check if the client is not registered
     	if (!UserDatabaseEntry.isRegistered(this.server, userName)) {
-    		this.kick("This account doesn't exist! Please create one and try again.");
+    		this.kick("Invalid username or password!");
     		return;
     	}
     	
@@ -192,7 +201,7 @@ public class NetworkHandler {
     	this.databaseEntry.load();
     	
     	if (!this.databaseEntry.passwordHash.equalsIgnoreCase(packet.passwordHash)) {
-    		this.kick("Invalid password!");
+    		this.kick("Invalid username or password!");
     		return;
     	}
     	
@@ -211,9 +220,14 @@ public class NetworkHandler {
     	if (!ClientUpdateCheck.isLatest(this.clientVersion)) {
     		this.sendPacket(new PacketInWindowPopup("Your client version is not the latest,"
     				+ " upgrade to the latest version to get the most recent features and bug fixes!"));
+    		this.sendPacket(new PacketPopup("Client outdated", "Your client version is not the latest,"
+    				+ " upgrade to the latest version to get the most recent features and bug fixes!"));
         	PintoServer.logger.warn("%s has an older client than the latest!", 
         			this.userName, this.clientVersion);
     	}
+    	
+    	// Send a heart beat with the updated users count
+    	this.server.sendHeartbeat();
     }
 
 	public void handleRegisterPacket(PacketRegister packet) {
@@ -248,6 +262,11 @@ public class NetworkHandler {
     	this.sendPacket(new PacketLogin(this.protocolVersion, "", ""));
     	PintoServer.logger.info("%s has been registered and has logged in (Client version %s)", 
     			this.userName, this.clientVersion);
+    	
+    	// Send first time message
+    	this.sendPacket(new PacketPopup("Welcome!", "Welcome to Pinto!,"
+    			+ " enjoy your new account,"
+    			+ " you can start talking with people by clicking on File > Add Contact"));
     }
 	
 	public void handleMessagePacket(PacketMessage packet) {
