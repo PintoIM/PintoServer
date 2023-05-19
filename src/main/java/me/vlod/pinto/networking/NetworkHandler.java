@@ -29,7 +29,7 @@ import me.vlod.pinto.networking.packet.PacketShrimp;
 import me.vlod.pinto.networking.packet.PacketStatus;
 
 public class NetworkHandler {
-	public static final int PROTOCOL_VERSION = 15;
+	public static final int PROTOCOL_VERSION = 16;
 	public static final int USERNAME_MAX = 16;
 	private PintoServer server;
 	public NetworkAddress networkAddress;

@@ -4,6 +4,7 @@ import java.awt.Color;
 import java.awt.GraphicsEnvironment;
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
@@ -333,8 +334,10 @@ public class PintoServer implements Runnable {
 			return;
 		}
 		
+		HttpURLConnection httpConnection = null;
+		
 		try {
-			HttpURLConnection httpConnection = (HttpURLConnection) new URL(MainConfig.instance.heartbeatURL)
+			httpConnection = (HttpURLConnection) new URL(MainConfig.instance.heartbeatURL)
 					.openConnection();
 			httpConnection.setRequestMethod("POST");
 			httpConnection.setRequestProperty("User-Agent", "PintoServer");
@@ -356,8 +359,9 @@ public class PintoServer implements Runnable {
 			payload.put("name", MainConfig.instance.heartbeatName);
 			payload.put("port", MainConfig.instance.listenPort);
 			payload.put("users", onlineClients);
-			payload.put("max_users", MainConfig.instance.maxUsers);
-			
+			payload.put("maxUsers", MainConfig.instance.maxUsers);
+			payload.put("tags", MainConfig.instance.heartbeatTags);
+
 			PrintWriter printWriter = new PrintWriter(outputStream);
 			printWriter.println(payload.toString());
 			printWriter.flush();
@@ -379,23 +383,28 @@ public class PintoServer implements Runnable {
             }
             
             String responseRaw = stringBuilder.toString();
-            JSONObject response = new JSONObject(responseRaw);
-			
-            if (response.getString("status").equalsIgnoreCase("OK")) {
-            	logger.info("Successfully sent a heart beat");
-            } else if (response.getString("status").equalsIgnoreCase("error")) {
-            	logger.warn("Sent a heart beat, but the server replied with error \"%s\"",
-            			response.getString("error"));
-            } else {
-            	throw new IllegalStateException();
+            try {
+                JSONObject response = new JSONObject(responseRaw);
+    			
+                if (!response.getString("status").equalsIgnoreCase("Error")) {
+                	logger.info("Successfully sent a heart beat: %s", response.getString("status"));
+                } else {
+                	logger.warn("Sent a heart beat, but the server replied with error \"%s\"",
+                			response.getString("error"));
+                }
+            } catch (Exception ex) {
+            	throw new IOException(String.format("Illegal heartbeat response: %s", responseRaw));
             }
             
             printWriter.close();
             bufferedReader.close();
-			httpConnection.disconnect();
 		} catch (Exception ex) {
 			logger.error("Unable to send a heart beat!");
 			logger.throwable(ex);
+		} finally {
+			if (httpConnection != null) {
+				httpConnection.disconnect();
+			}
 		}
 	}
 	
