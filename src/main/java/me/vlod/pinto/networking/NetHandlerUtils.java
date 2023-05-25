@@ -55,7 +55,8 @@ public class NetHandlerUtils {
     	}
     	
     	// Check if the client version is not supported
-    	if (!ClientUpdateCheck.isSupported(clientVersion)) {
+    	if (!MainConfig.instance.ignoreClientVersion && 
+    		!ClientUpdateCheck.isSupported(clientVersion)) {
     		handler.kick(String.format("Your client version is unsupported!\n"
     				+ "Please update to the latest version!"));
     		return false;

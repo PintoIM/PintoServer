@@ -6,6 +6,7 @@ public class MainConfig implements Config {
 	public String listenIP = "0.0.0.0";
 	public String databaseFile = "pintoserver.db";
 	public boolean useWhiteList = false;
+	public boolean ignoreClientVersion = false;
 	public int maxUsers = 128;
 	public String pluginsDir = "plugins";
 	public String heartbeatName = "My Cool Pinto! Server";

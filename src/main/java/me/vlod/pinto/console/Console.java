@@ -27,6 +27,7 @@ import javax.swing.text.StyleConstants;
 import javax.swing.text.StyleContext;
 
 import me.vlod.pinto.Delegate;
+import me.vlod.pinto.PintoServer;
 import me.vlod.pinto.networking.NetworkHandler;
 
 public class Console {
@@ -109,7 +110,8 @@ public class Console {
 			public void actionPerformed(ActionEvent e) {
 				JOptionPane.showMessageDialog(null, 
 						String.format("PintoServer: Official server implementation for Pinto!\n"
-								+ "Protocol Version: %d\nApplication Version: v1.0", NetworkHandler.PROTOCOL_VERSION),
+								+ "Protocol Version: %d\nApplication Version: %s", 
+								NetworkHandler.PROTOCOL_VERSION, PintoServer.VERSION_STRING),
 						"Pinto! Server - About", JOptionPane.INFORMATION_MESSAGE | JOptionPane.OK_OPTION);
 			}
 		});

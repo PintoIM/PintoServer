@@ -31,6 +31,7 @@ import me.vlod.pinto.configuration.WhitelistConfig;
 import me.vlod.pinto.console.Console;
 import me.vlod.pinto.consolehandler.ConsoleCaller;
 import me.vlod.pinto.consolehandler.ConsoleHandler;
+import me.vlod.pinto.logger.LogLevel;
 import me.vlod.pinto.logger.Logger;
 import me.vlod.pinto.networking.NetHandlerUtils;
 import me.vlod.pinto.networking.NetworkAddress;
@@ -42,6 +43,14 @@ import me.vlod.sql.SQLInterface;
 import me.vlod.sql.SQLiteInterface;
 
 public class PintoServer implements Runnable {
+	public static final String VERSION_STRING = "exp1";
+	public static final String ASCII_LOGO = ""
+			+ " _____ _       _        _____                          \n"
+			+ "|  __ (_)     | |      / ____|                         \n"
+			+ "| |__) | _ __ | |_ ___| (___   ___ _ ____   _____ _ __ \n"
+			+ "|  ___/ | '_ \\| __/ _ \\\\___ \\ / _ \\ '__\\ \\ / / _ \\ '__|\n"
+			+ "| |   | | | | | || (_) |___) |  __/ |   \\ V /  __/ |   \n"
+			+ "|_|   |_|_| |_|\\__\\___/_____/ \\___|_|    \\_/ \\___|_|";
 	public static final String TABLE_NAME = "pinto";
 	public static PintoServer instance;
 	public static Logger logger;
@@ -91,6 +100,8 @@ public class PintoServer implements Runnable {
 	@Override
 	public void run() {
 		try {
+			logger.levelMultiLine(LogLevel.INFO, ASCII_LOGO);
+			
 			// Load configuration
 			logger.info("Loading configuration...");
 			this.initConfig();
@@ -116,7 +127,7 @@ public class PintoServer implements Runnable {
 			
 			// Initialization
 			logger.info("Initializing...");
-			logger.info("The server will listen on %s:%d, you can change this in the configuration!",
+			logger.info("The server will listen on %s:%d, you can change this in the configuration",
 					MainConfig.instance.listenIP, MainConfig.instance.listenPort);
 			
 			// Set runnable to true, which will allow the loops to work
