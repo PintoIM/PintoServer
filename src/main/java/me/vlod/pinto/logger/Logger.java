@@ -7,6 +7,7 @@ import java.util.ArrayList;
 
 import me.vlod.pinto.Delegate;
 import me.vlod.pinto.Utils;
+import me.vlod.pinto.configuration.MainConfig;
 
 public class Logger {
 	public final ArrayList<Delegate> targets = new ArrayList<Delegate>();
@@ -51,6 +52,9 @@ public class Logger {
 		} else if (level == LogLevel.WARN) {
 			this.log(level.toString(), message, new Color(246, 190, 0), format);
 		} else {
+			if (MainConfig.instance != null && 
+				!MainConfig.instance.showVerboseLogs && 
+				level == LogLevel.VERBOSE) return;
 			this.log(level.toString(), message, Color.black, format);
 		}
 	}
@@ -63,6 +67,9 @@ public class Logger {
 		} else if (level == LogLevel.WARN) {
 			this.logMultiLine(level.toString(), message, new Color(246, 190, 0), format);
 		} else {
+			if (MainConfig.instance != null && 
+				!MainConfig.instance.showVerboseLogs && 
+				level == LogLevel.VERBOSE) return;
 			this.logMultiLine(level.toString(), message, Color.black, format);
 		}
 	}

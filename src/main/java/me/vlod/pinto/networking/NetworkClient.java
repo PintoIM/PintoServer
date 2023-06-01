@@ -44,7 +44,11 @@ public class NetworkClient {
     }
     
     public void disconnect(String reason) {
-    	if (!this.isConnected) return;
+    	this.disconnect(reason, false);
+    }
+    
+    public void disconnect(String reason, boolean noDisconnectEvent) {
+    	boolean sendEvent = this.isConnected && !noDisconnectEvent;
     	this.isConnected = false;
 
         if (this.socket != null) {
@@ -59,7 +63,8 @@ public class NetworkClient {
         this.outputStream = null;
         this.readThread = null;
         
-        this.disconnected.call(reason);
+        if (sendEvent)
+        	this.disconnected.call(reason);
     }
 
     public void sendPacket(Packet packet) {

@@ -19,23 +19,25 @@ import me.vlod.pinto.networking.packet.PacketAddContact;
 import me.vlod.pinto.networking.packet.PacketClearContacts;
 import me.vlod.pinto.networking.packet.PacketContactRequest;
 import me.vlod.pinto.networking.packet.PacketInWindowPopup;
+import me.vlod.pinto.networking.packet.PacketKeepAlive;
 import me.vlod.pinto.networking.packet.PacketLogin;
 import me.vlod.pinto.networking.packet.PacketLogout;
 import me.vlod.pinto.networking.packet.PacketMessage;
 import me.vlod.pinto.networking.packet.PacketPopup;
 import me.vlod.pinto.networking.packet.PacketRegister;
 import me.vlod.pinto.networking.packet.PacketRemoveContact;
-import me.vlod.pinto.networking.packet.PacketShrimp;
+import me.vlod.pinto.networking.packet.PacketServerID;
 import me.vlod.pinto.networking.packet.PacketStatus;
 
 public class NetworkHandler {
-	public static final int PROTOCOL_VERSION = 0;
+	public static final int PROTOCOL_VERSION = 1;
 	public static final int USERNAME_MAX = 16;
 	private PintoServer server;
 	public NetworkAddress networkAddress;
 	public NetworkClient networkClient;
 	public ConsoleHandler consoleHandler;
 	public int noLoginKickTicks;
+	public int noKeepAlivePacketTicks;
 	public byte protocolVersion;
 	public boolean loggedIn;
 	public UserDatabaseEntry databaseEntry;
@@ -85,10 +87,12 @@ public class NetworkHandler {
 			return;
 		}
 		
-		PintoServer.logger.info("Received packet %s (%d) from %s (%s)", 
-				packet.getClass().getSimpleName().toUpperCase(),
-				packet.getID(), this.networkAddress,
-    			(this.userName != null ? this.userName : "** UNAUTHENTICATED **"));
+		if (packet.getID() != 255) {
+			PintoServer.logger.verbose("Received packet %s (%d) from %s (%s)", 
+					packet.getClass().getSimpleName().toUpperCase(),
+					packet.getID(), this.networkAddress,
+	    			(this.userName != null ? this.userName : "** UNAUTHENTICATED **"));	
+		}
 		
 		packet.handle(this);
 		this.server.eventSender.send(new HandledPacketEvent(this, packet));
@@ -110,7 +114,7 @@ public class NetworkHandler {
 		}
 		
 		if (packet.getID() != 255) {
-			PintoServer.logger.info("Sent packet %s (%d) to %s (%s)", 
+			PintoServer.logger.verbose("Sent packet %s (%d) to %s (%s)", 
 					packet.getClass().getSimpleName().toUpperCase(),
 					packet.getID(), this.networkAddress,
 	    			(this.userName != null ? this.userName : "** UNAUTHENTICATED **"));	
@@ -122,12 +126,18 @@ public class NetworkHandler {
 	public void onTick() {
 		this.noLoginKickTicks++;
 		
-		if (this.noLoginKickTicks > 10 && this.userName == null) {
+		if (this.noLoginKickTicks > 6 && this.userName == null) {
 			this.kick("No login packet received in an acceptable time frame!");
 			return;
 		}
 		
-		this.sendPacket(new PacketShrimp());
+		if (this.noKeepAlivePacketTicks > 5) {
+			this.kick("Timed out");
+			return;
+		}
+		
+		this.sendPacket(new PacketKeepAlive());
+		this.noKeepAlivePacketTicks++;
 	}
 
 	private void performSync() {
@@ -153,7 +163,8 @@ public class NetworkHandler {
     	PintoServer.logger.info("Kicking %s (%s): %s", this.networkAddress,
     			(this.userName != null ? this.userName : "** UNAUTHENTICATED **"), reason);
     	this.sendPacket(new PacketLogout(reason));
-    	this.networkClient.disconnect(String.format("Kicked (%s)", reason));
+    	this.networkClient.disconnect(null, true);
+    	this.onDisconnect(String.format("Kicked (%s)", reason));
     }
     
     public void changeStatus(UserStatus status, boolean noSelfUpdate) {
@@ -212,6 +223,9 @@ public class NetworkHandler {
     	this.sendPacket(new PacketLogin(this.protocolVersion, "", ""));
     	PintoServer.logger.info("%s has logged in (Client version %s)", 
     			this.userName, this.clientVersion);
+    	
+    	// Send the user our server ID
+    	this.sendPacket(new PacketServerID(MainConfig.instance.serverID));
     	
     	// Sync the database to the user
     	this.performSync();
@@ -381,19 +395,29 @@ public class NetworkHandler {
 		}
 		
 		NetworkHandler requesterNetHandler = this.server.getHandlerByName(requester);
-		this.sendPacket(new PacketAddContact(requester, 
-				(requesterNetHandler == null ?
-						UserStatus.OFFLINE : 
-							NetHandlerUtils.getToOthersStatus(
-									requesterNetHandler.databaseEntry.status))));
+		
+		if (answer.equalsIgnoreCase("yes")) {
+			this.sendPacket(new PacketAddContact(requester, 
+					(requesterNetHandler == null ?
+							UserStatus.OFFLINE : 
+								NetHandlerUtils.getToOthersStatus(
+										requesterNetHandler.databaseEntry.status))));	
+		}
 		
 		if (requesterNetHandler == null) {
 			return;
 		}
+
+		if (answer.equalsIgnoreCase("yes")) {
+			requesterNetHandler.databaseEntry.load();
+			requesterNetHandler.sendPacket(new PacketAddContact(this.userName, 
+					NetHandlerUtils.getToOthersStatus(this.databaseEntry.status)));
+		}
 		
-		requesterNetHandler.databaseEntry.load();
-		requesterNetHandler.sendPacket(new PacketAddContact(this.userName, 
-				NetHandlerUtils.getToOthersStatus(this.databaseEntry.status)));
 		requesterNetHandler.sendPacket(new PacketInWindowPopup(requesterNotification));
+	}
+	
+	public void handleKeepAlivePacket() {
+		this.noKeepAlivePacketTicks--;
 	}
 }

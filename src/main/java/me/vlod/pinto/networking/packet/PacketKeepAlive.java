@@ -6,7 +6,7 @@ import java.io.IOException;
 
 import me.vlod.pinto.networking.NetworkHandler;
 
-public class PacketShrimp implements Packet {
+public class PacketKeepAlive implements Packet {
 	@Override
 	public void read(DataInputStream stream) throws IOException {
 	}
@@ -22,6 +22,7 @@ public class PacketShrimp implements Packet {
 
 	@Override
 	public void handle(NetworkHandler netHandler) {
+		netHandler.handleKeepAlivePacket();
 	}
 
 	@Override

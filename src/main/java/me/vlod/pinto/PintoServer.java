@@ -19,6 +19,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Scanner;
+import java.util.UUID;
 
 import org.json.JSONObject;
 
@@ -105,6 +106,12 @@ public class PintoServer implements Runnable {
 			// Load configuration
 			logger.info("Loading configuration...");
 			this.initConfig();
+			
+			if (MainConfig.instance.serverID.trim().isEmpty()) {
+				logger.warn("No valid server ID found, generating one for you...");
+				MainConfig.instance.serverID = UUID.randomUUID().toString();
+			}
+			logger.info("The ID of this server is %s", MainConfig.instance.serverID);
 			
 			// Load database
 			logger.info("Loading database...");
