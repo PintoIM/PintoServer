@@ -88,13 +88,7 @@ public class Utils {
 	 * @return the check status
 	 */
 	public static boolean isBoolean(String str) {
-	    if (str == null) 
-	        return false;   
-	    else if (str.equalsIgnoreCase("true") || 
-	    	str.equalsIgnoreCase("false"))
-	    	return true;
-	    else
-	    	return false;
+		return str != null && (str.equalsIgnoreCase("true") || str.equalsIgnoreCase("false"));
 	}
 	
 	/**

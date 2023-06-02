@@ -55,6 +55,7 @@ public class NetworkClient {
 			try {
 				this.socket.close();
 			} catch (Exception ex) {
+				// Ignore any close exceptions, as we are cleaning up
 			}	
         }
         
@@ -121,7 +122,7 @@ public class NetworkClient {
                 Packet packet = Packets.getPacketByID(id);
 
                 if (packet == null) {
-                	throw new SocketException("Bad packet ID: {id}");
+                	throw new SocketException(String.format("Bad packet ID: %d", id));
                 }
 
                 if (size > 0) {

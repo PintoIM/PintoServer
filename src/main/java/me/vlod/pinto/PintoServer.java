@@ -44,7 +44,7 @@ import me.vlod.sql.SQLInterface;
 import me.vlod.sql.SQLiteInterface;
 
 public class PintoServer implements Runnable {
-	public static final String VERSION_STRING = "exp1";
+	public static final String VERSION_STRING = "b1.0";
 	public static final String ASCII_LOGO = ""
 			+ " _____ _       _        _____                          \n"
 			+ "|  __ (_)     | |      / ____|                         \n"
@@ -110,6 +110,7 @@ public class PintoServer implements Runnable {
 			if (MainConfig.instance.serverID.trim().isEmpty()) {
 				logger.warn("No valid server ID found, generating one for you...");
 				MainConfig.instance.serverID = UUID.randomUUID().toString();
+				this.saveConfig();
 			}
 			logger.info("The ID of this server is %s", MainConfig.instance.serverID);
 			
@@ -301,6 +302,7 @@ public class PintoServer implements Runnable {
 			try {
 				this.serverSocket.close();
 			} catch (Exception ex) {
+				// Ignore any close exceptions, as we are shutting down
 			}
 		}
 		
