@@ -42,6 +42,7 @@ public class NetworkHandler {
 	public boolean loggedIn;
 	public UserDatabaseEntry databaseEntry;
 	public String userName;
+	public String motd = "";
 	public String clientVersion;
 	public boolean inCall;
 	public String inCallWith;
@@ -99,7 +100,7 @@ public class NetworkHandler {
 	}
 	
 	private void onDisconnect(String reason) {
-		this.changeStatus(UserStatus.OFFLINE, true);
+		this.changeStatus(UserStatus.OFFLINE, "", true);
 		this.server.clients.remove(this);
 		PintoServer.logger.info("%s has disconnected: %s", this.networkAddress, reason);
 		this.server.eventSender.send(new ClientDisconnectedEvent(this, reason));
@@ -142,19 +143,20 @@ public class NetworkHandler {
 
 	private void performSync() {
 		this.sendPacket(new PacketClearContacts());
-		this.sendPacket(new PacketStatus("", this.databaseEntry.status));
+		this.sendPacket(new PacketStatus("", this.databaseEntry.status, ""));
 
-		for (String contact : this.databaseEntry.contacts) {
+		for (String contact : this .databaseEntry.contacts) {
 			NetworkHandler netHandler = this.server.getHandlerByName(contact);
 			this.sendPacket(new PacketAddContact(contact, 
-					(netHandler == null ?
-							UserStatus.OFFLINE : 
-								NetHandlerUtils.getToOthersStatus(
-										netHandler.databaseEntry.status))));
+					netHandler == null ? UserStatus.OFFLINE : 
+						NetHandlerUtils.getToOthersStatus(netHandler.databaseEntry.status),
+					netHandler == null ? "" : 
+						NetHandlerUtils.getToOthersStatus(netHandler.databaseEntry.status) 
+							!= UserStatus.OFFLINE ? netHandler.motd : ""));
 			
 			if (netHandler != null && 
 				NetHandlerUtils.getToOthersStatus(this.databaseEntry.status) != UserStatus.OFFLINE) {
-				netHandler.sendPacket(new PacketStatus(this.userName, this.databaseEntry.status));
+				netHandler.sendPacket(new PacketStatus(this.userName, this.databaseEntry.status, ""));
 			}
 		}
 	}
@@ -167,12 +169,14 @@ public class NetworkHandler {
     	this.onDisconnect(String.format("Kicked (%s)", reason));
     }
     
-    public void changeStatus(UserStatus status, boolean noSelfUpdate) {
+    public void changeStatus(UserStatus status, String motd, boolean noSelfUpdate) {
     	if (this.databaseEntry == null) return;
     	
     	this.databaseEntry.status = status;
+    	this.motd = motd;
+    	
     	if (!noSelfUpdate) {
-    		this.sendPacket(new PacketStatus("", status));
+    		this.sendPacket(new PacketStatus("", status, this.motd));
     		this.databaseEntry.save();
     	}
 
@@ -180,7 +184,8 @@ public class NetworkHandler {
 			NetworkHandler netHandler = this.server.getHandlerByName(contact);
 			if (netHandler == null) continue;
 			netHandler.sendPacket(new PacketStatus(this.userName,
-					NetHandlerUtils.getToOthersStatus(status)));
+					NetHandlerUtils.getToOthersStatus(status), 
+					NetHandlerUtils.getToOthersStatus(status) != UserStatus.OFFLINE ? this.motd : ""));
 		}
     }
 
@@ -367,7 +372,7 @@ public class NetworkHandler {
     		this.kick("Protocol violation!");
     		return;
     	}
-    	this.changeStatus(packet.status, false);
+    	this.changeStatus(packet.status, packet.motd, false);
 	}
     
 	public void handleContactRequestPacket(PacketContactRequest packet) {
@@ -398,10 +403,11 @@ public class NetworkHandler {
 		
 		if (answer.equalsIgnoreCase("yes")) {
 			this.sendPacket(new PacketAddContact(requester, 
-					(requesterNetHandler == null ?
-							UserStatus.OFFLINE : 
-								NetHandlerUtils.getToOthersStatus(
-										requesterNetHandler.databaseEntry.status))));	
+					requesterNetHandler == null ? UserStatus.OFFLINE : 
+								NetHandlerUtils.getToOthersStatus(requesterNetHandler.databaseEntry.status), 
+					 requesterNetHandler == null ? "" : 
+						 NetHandlerUtils.getToOthersStatus(requesterNetHandler.databaseEntry.status) 
+						 	!= UserStatus.OFFLINE ? requesterNetHandler.motd : ""));	
 		}
 		
 		if (requesterNetHandler == null) {
@@ -411,7 +417,9 @@ public class NetworkHandler {
 		if (answer.equalsIgnoreCase("yes")) {
 			requesterNetHandler.databaseEntry.load();
 			requesterNetHandler.sendPacket(new PacketAddContact(this.userName, 
-					NetHandlerUtils.getToOthersStatus(this.databaseEntry.status)));
+					NetHandlerUtils.getToOthersStatus(this.databaseEntry.status), 
+					NetHandlerUtils.getToOthersStatus(this.databaseEntry.status) 
+						!= UserStatus.OFFLINE ? this.motd : ""));
 		}
 		
 		requesterNetHandler.sendPacket(new PacketInWindowPopup(requesterNotification));
