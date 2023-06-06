@@ -148,11 +148,9 @@ public class NetworkHandler {
 		for (String contact : this .databaseEntry.contacts) {
 			NetworkHandler netHandler = this.server.getHandlerByName(contact);
 			this.sendPacket(new PacketAddContact(contact, 
-					netHandler == null ? UserStatus.OFFLINE : 
-						NetHandlerUtils.getToOthersStatus(netHandler.databaseEntry.status),
+					netHandler == null ? UserStatus.OFFLINE : this.getStatus(),
 					netHandler == null ? "" : 
-						NetHandlerUtils.getToOthersStatus(netHandler.databaseEntry.status) 
-							!= UserStatus.OFFLINE ? netHandler.motd : ""));
+						this.isOnline() ? netHandler.motd : ""));
 			
 			if (netHandler != null && 
 				NetHandlerUtils.getToOthersStatus(this.databaseEntry.status) != UserStatus.OFFLINE) {
@@ -184,8 +182,8 @@ public class NetworkHandler {
 			NetworkHandler netHandler = this.server.getHandlerByName(contact);
 			if (netHandler == null) continue;
 			netHandler.sendPacket(new PacketStatus(this.userName,
-					NetHandlerUtils.getToOthersStatus(status), 
-					NetHandlerUtils.getToOthersStatus(status) != UserStatus.OFFLINE ? this.motd : ""));
+					this.getStatus(), 
+					this.isOnline() ? this.motd : ""));
 		}
     }
 
@@ -380,6 +378,7 @@ public class NetworkHandler {
 		String requester = contactNameSplitted[0];
 		String answer = contactNameSplitted[1];
 		String requesterNotification = "";
+		NetworkHandler requesterNetHandler = this.server.getHandlerByName(requester);
 		
 		if (answer.equalsIgnoreCase("yes")) {
 			if (this.databaseEntry.contacts.contains(requester)) {
@@ -394,38 +393,36 @@ public class NetworkHandler {
 			requesterDatabaseEntry.contacts.add(this.userName);
 			requesterDatabaseEntry.save();
 			
+			this.sendPacket(new PacketAddContact(requester, 
+					requesterNetHandler == null ? UserStatus.OFFLINE : requesterNetHandler.getStatus(), 
+					 requesterNetHandler == null ? "" : 
+						 requesterNetHandler.isOnline() ? requesterNetHandler.motd : ""));	
+			
 			requesterNotification = String.format("%s has accepted your request", this.userName);
 		} else {
 			requesterNotification = String.format("%s has declined your request", this.userName);
 		}
-		
-		NetworkHandler requesterNetHandler = this.server.getHandlerByName(requester);
-		
-		if (answer.equalsIgnoreCase("yes")) {
-			this.sendPacket(new PacketAddContact(requester, 
-					requesterNetHandler == null ? UserStatus.OFFLINE : 
-								NetHandlerUtils.getToOthersStatus(requesterNetHandler.databaseEntry.status), 
-					 requesterNetHandler == null ? "" : 
-						 NetHandlerUtils.getToOthersStatus(requesterNetHandler.databaseEntry.status) 
-						 	!= UserStatus.OFFLINE ? requesterNetHandler.motd : ""));	
-		}
-		
-		if (requesterNetHandler == null) {
-			return;
-		}
 
-		if (answer.equalsIgnoreCase("yes")) {
-			requesterNetHandler.databaseEntry.load();
-			requesterNetHandler.sendPacket(new PacketAddContact(this.userName, 
-					NetHandlerUtils.getToOthersStatus(this.databaseEntry.status), 
-					NetHandlerUtils.getToOthersStatus(this.databaseEntry.status) 
-						!= UserStatus.OFFLINE ? this.motd : ""));
+		if (requesterNetHandler != null) {
+			if (answer.equalsIgnoreCase("yes")) {
+				requesterNetHandler.databaseEntry.load();
+				requesterNetHandler.sendPacket(new PacketAddContact(this.userName, this.getStatus(), 
+						this.isOnline() ? this.motd : ""));
+			}
+			
+			requesterNetHandler.sendPacket(new PacketInWindowPopup(requesterNotification));
 		}
-		
-		requesterNetHandler.sendPacket(new PacketInWindowPopup(requesterNotification));
 	}
 	
 	public void handleKeepAlivePacket() {
 		this.noKeepAlivePacketTicks--;
+	}
+	
+	public UserStatus getStatus() {
+		return NetHandlerUtils.getToOthersStatus(this.databaseEntry.status);
+	}
+	
+	public boolean isOnline() {
+		return this.getStatus() != UserStatus.OFFLINE;
 	}
 }
