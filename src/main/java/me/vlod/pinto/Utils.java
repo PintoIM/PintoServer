@@ -3,6 +3,7 @@ package me.vlod.pinto;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.math.BigInteger;
@@ -12,6 +13,7 @@ import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -214,6 +216,15 @@ public class Utils {
 		return value;
 	}
 	
+
+	/**
+	 * Reads 4 bytes (size header) + a string from the specified stream (encoded in UTF-16)
+	 * 
+	 * @param stream the stream to read from
+	 * @param maxLength the maximum length of the string
+	 * @return the string
+	 * @throws IOException if an IO error occurred
+	 */
 	public static String readPintoStringFromStream(DataInputStream stream, int maxLength) throws IOException {
 	    int length = stream.readInt();
 	    if (length < 0) 
@@ -232,6 +243,14 @@ public class Utils {
 	    return str;
 	}
 	
+	/**
+	 * Writes the specified string (encoded in UTF-16) with a size header to specified stream
+	 * 
+	 * @param stream the stream to write to
+	 * @param str the string to write
+	 * @param maxLength the maximum length of the string
+	 * @throws IOException if an IO error occurred
+	 */
 	public static void writePintoStringToStream(DataOutputStream stream, 
 			String str, int maxLength) throws IOException {
 	    if (str.length() > maxLength)
@@ -244,8 +263,88 @@ public class Utils {
 	    stream.write(stringData);
 	}
 	
+	/**
+	 * Gets the size of the specified string (encoded in UTF-16) along side a size header
+	 * 
+	 * @param str the string
+	 * @return the size
+	 */
 	public static int getPintoStringSize(String str) {
 		return 4 + str.getBytes(StandardCharsets.UTF_16BE).length;
 	}
+	
+	public static final int INPUT_STREAM_MAX_BUFFER_SIZE = Integer.MAX_VALUE - 8;
+	
+	/**
+	 * The readNBytes from Java 9 ported over to Java 8
+	 * 
+	 * @param stream the stream to read the bytes from
+	 * @param len the amount of bytes to read
+	 * @return the bytes
+	 * @throws IOException if an IO error occurred
+	 */
+	public static byte[] readNBytes(InputStream stream, int len) throws IOException {
+        if (len < 0) {
+            throw new IllegalArgumentException("len < 0");
+        }
+
+        List<byte[]> bufs = null;
+        byte[] result = null;
+        int total = 0;
+        int remaining = len;
+        int n;
+        do {
+            byte[] buf = new byte[Math.min(remaining, 8192)];
+            int nread = 0;
+
+            // read to EOF which may read more or less than buffer size
+            while ((n = stream.read(buf, nread,
+                    Math.min(buf.length - nread, remaining))) > 0) {
+                nread += n;
+                remaining -= n;
+            }
+
+            if (nread > 0) {
+                if (INPUT_STREAM_MAX_BUFFER_SIZE - total < nread) {
+                    throw new OutOfMemoryError("Required array size too large");
+                }
+                if (nread < buf.length) {
+                    buf = Arrays.copyOfRange(buf, 0, nread);
+                }
+                total += nread;
+                if (result == null) {
+                    result = buf;
+                } else {
+                    if (bufs == null) {
+                        bufs = new ArrayList<>();
+                        bufs.add(result);
+                    }
+                    bufs.add(buf);
+                }
+            }
+            // if the last call to read returned -1 or the number of bytes
+            // requested have been read then break
+        } while (n >= 0 && remaining > 0);
+
+        if (bufs == null) {
+            if (result == null) {
+                return new byte[0];
+            }
+            return result.length == total ?
+                result : Arrays.copyOf(result, total);
+        }
+
+        result = new byte[total];
+        int offset = 0;
+        remaining = total;
+        for (byte[] b : bufs) {
+            int count = Math.min(b.length, remaining);
+            System.arraycopy(b, 0, result, offset, count);
+            offset += count;
+            remaining -= count;
+        }
+
+        return result;
+    }
 }
 

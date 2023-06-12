@@ -10,6 +10,7 @@ import java.nio.charset.StandardCharsets;
 
 import me.vlod.pinto.Delegate;
 import me.vlod.pinto.PintoServer;
+import me.vlod.pinto.Utils;
 import me.vlod.pinto.networking.packet.Packet;
 import me.vlod.pinto.networking.packet.Packets;
 
@@ -126,7 +127,7 @@ public class NetworkClient {
                 }
 
                 if (size > 0) {
-                    byte[] data = inputStream.readNBytes(size);
+                    byte[] data = Utils.readNBytes(inputStream, size);
                     DataInputStream tempReader = new DataInputStream(new ByteArrayInputStream(data));
                     packet.read(tempReader);
                     tempReader.close();
