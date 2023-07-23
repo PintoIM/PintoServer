@@ -83,8 +83,8 @@ public class NetworkClient {
         		// ID
         		this.outputStream.writeInt(packet.getID());
         		
+        		// Data
         		if (packet.getSize() > 0) {
-            		// Data
             		packet.write(this.outputStream);
         		}
         		
