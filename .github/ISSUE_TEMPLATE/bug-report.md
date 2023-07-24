@@ -29,7 +29,7 @@ If applicable, add screenshots to help explain your problem.
 
 ## Desktop (please complete the following information):
 - OS: [e.x. Windows 10]
-- Pinto! Version: [e.x. exp1-hotfix1]
+- Pinto! Server Version: [e.x. exp1-hotfix1]
 
 ## Additional context
 Add any other context about the problem here.
