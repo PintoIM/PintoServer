@@ -120,6 +120,7 @@ public class NetworkClient {
                 	throw new SocketException("Bad packet header!");
                 }
 
+                // TODO: Remove the size as it's useless
                 int size = inputStream.readInt();
                 int id = inputStream.readInt();
                 Packet packet = Packets.getPacketByID(id);
