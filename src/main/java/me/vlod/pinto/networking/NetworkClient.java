@@ -18,16 +18,20 @@ import me.vlod.pinto.networking.packet.Packets;
 public class NetworkClient {
     public boolean isConnected;
     private Socket socket;
-    private DataInputStream inputStream;
-    private DataOutputStream outputStream;
+    public DataInputStream inputStream;
+    public DataOutputStream outputStream;
     private Thread readThread;
     public Delegate disconnected = Delegate.empty;
     public Delegate receivedPacket = Delegate.empty;
+    public Delegate receivesPTAPIdentifier = Delegate.empty;
     private Object sendLock = new Object();
     
     public NetworkClient(Socket socket) {
+    	this.socket = socket;
+    }
+    
+    public void start() {
         try {
-            this.socket = socket;
             this.isConnected = true;
 
             this.inputStream = new DataInputStream(this.socket.getInputStream());
@@ -102,6 +106,12 @@ public class NetworkClient {
     	while (this.isConnected) {
     		try {
                 int headerPart0 = inputStream.read();
+                
+                if (headerPart0 == 0xDF) {
+                	this.receivesPTAPIdentifier.call();
+                	return;
+                }
+                
                 int headerPart1 = inputStream.read();
                 int headerPart2 = inputStream.read();
                 int headerPart3 = inputStream.read();
@@ -136,7 +146,7 @@ public class NetworkClient {
                     tempReader.close();
                 }
 
-                receivedPacket.call(packet);
+                this.receivedPacket.call(packet);
                 Thread.sleep(1);
     		} catch (Exception ex) {
                 if (!(ex instanceof IOException || ex instanceof SocketException)) {

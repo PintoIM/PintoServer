@@ -1,10 +1,15 @@
 package me.vlod.pinto.networking;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+import java.util.concurrent.ThreadLocalRandom;
+
 import me.vlod.pinto.ClientUpdateCheck;
 import me.vlod.pinto.Delegate;
 import me.vlod.pinto.PintoServer;
 import me.vlod.pinto.UserDatabaseEntry;
 import me.vlod.pinto.UserStatus;
+import me.vlod.pinto.Utils;
 import me.vlod.pinto.configuration.MainConfig;
 import me.vlod.pinto.consolehandler.ConsoleCaller;
 import me.vlod.pinto.consolehandler.ConsoleHandler;
@@ -24,13 +29,13 @@ import me.vlod.pinto.networking.packet.PacketLogin;
 import me.vlod.pinto.networking.packet.PacketLogout;
 import me.vlod.pinto.networking.packet.PacketMessage;
 import me.vlod.pinto.networking.packet.PacketPopup;
-import me.vlod.pinto.networking.packet.PacketRegister;
 import me.vlod.pinto.networking.packet.PacketRemoveContact;
 import me.vlod.pinto.networking.packet.PacketServerID;
 import me.vlod.pinto.networking.packet.PacketStatus;
 
 public class NetworkHandler {
 	public static final int PROTOCOL_VERSION = 1;
+	public static final int TOKEN_MAX = 128;
 	public static final int USERNAME_MAX = 16;
 	private PintoServer server;
 	public NetworkAddress networkAddress;
@@ -46,6 +51,7 @@ public class NetworkHandler {
 	public String clientVersion;
 	public boolean inCall;
 	public String inCallWith;
+	private boolean isPTAP;
 
 	public NetworkHandler(PintoServer server, NetworkAddress address, NetworkClient client) {
 		this.server = server;
@@ -67,6 +73,62 @@ public class NetworkHandler {
 			}
 		};
 		
+		this.networkClient.receivesPTAPIdentifier = new Delegate() {
+			@Override
+			public void call(Object... args) {
+				NetworkClient client = networkClient;
+				Delegate sendToken = new Delegate() {
+					@Override
+					public void call(Object... args) {
+						try {
+							String data = (String)args[0];
+							byte[] dataRaw = Base64.getEncoder().encode(data.getBytes(StandardCharsets.UTF_8));
+							int dataSize = (byte)dataRaw.length;
+							PintoServer.logger.verbose("%s <- %s (%d)", networkAddress, data, dataSize);
+							
+							client.outputStream.writeByte(dataSize);
+							client.outputStream.write(dataRaw);
+						} catch (Exception ex) {
+							PintoServer.logger.error("Unable to handle a PTAP client %s: %s", networkAddress, ex);
+							client.disconnect("Server error");
+						}
+					}
+				};
+
+				try {
+					PintoServer.logger.info("%s has identified itself as a PTAP client", networkAddress);
+					PintoServer.logger.verbose("Sending our identification to %s...", networkAddress);
+					client.outputStream.write(0xFF);
+					isPTAP = true;
+					
+					PintoServer.logger.verbose("Reading authentication data from %s...", networkAddress);
+					int dataSize = client.inputStream.read();
+					byte[] dataRaw = Utils.readNBytes(client.inputStream, dataSize);
+					String data = new String(Base64.getDecoder().decode(dataRaw), StandardCharsets.UTF_8);
+					String[] dataParsed = data.split(":");
+					PintoServer.logger.verbose("%s -> %s (%d)", networkAddress, data, dataSize);
+					
+					String username = dataParsed[0];
+					String password = dataParsed[1];
+					String clientVersion = dataParsed[2];
+					PintoServer.logger.info("PTAP client %s is authenticating as \"%s\""
+							+ " from client version \"%s\"", networkAddress, username, clientVersion);
+					
+					if (username.equalsIgnoreCase("ccp")) {
+						sendToken.call("error.ccp");
+					} else {
+						sendToken.call(handlePTAPRequest(username, password, clientVersion));
+					}
+
+					client.disconnect("Client disconnect");
+				} catch (Exception ex) {
+					PintoServer.logger.error("Unable to handle PTAP client %s: %s", networkAddress, ex);
+					client.disconnect("Server error");
+				}
+			}
+		};
+		
+		this.networkClient.start();
 		PintoServer.logger.info("%s has connected", this.networkAddress);
 		
 		if (this.server.clients.size() > MainConfig.instance.maxUsers) {
@@ -89,10 +151,9 @@ public class NetworkHandler {
 		}
 		
 		if (packet.getID() != 255) {
-			PintoServer.logger.verbose("Received packet %s (%d) from %s (%s)", 
-					packet.getClass().getSimpleName().toUpperCase(),
-					packet.getID(), this.networkAddress,
-	    			(this.userName != null ? this.userName : "** UNAUTHENTICATED **"));	
+			PintoServer.logger.verbose("%s (%s) -> %s (%d)", 
+					this.networkAddress, (this.userName != null ? this.userName : "** UNAUTHENTICATED **"),
+					packet.getClass().getSimpleName().toUpperCase(), packet.getID());	
 		}
 		
 		packet.handle(this);
@@ -115,16 +176,16 @@ public class NetworkHandler {
 		}
 		
 		if (packet.getID() != 255) {
-			PintoServer.logger.verbose("Sent packet %s (%d) to %s (%s)", 
-					packet.getClass().getSimpleName().toUpperCase(),
-					packet.getID(), this.networkAddress,
-	    			(this.userName != null ? this.userName : "** UNAUTHENTICATED **"));	
+			PintoServer.logger.verbose("%s (%s) <- %s (%d)",
+					this.networkAddress, (this.userName != null ? this.userName : "** UNAUTHENTICATED **"),
+					packet.getClass().getSimpleName().toUpperCase(), packet.getID());	
 		}
 		this.networkClient.sendPacket(packet);
 		this.server.eventSender.send(new SentPacketEvent(this, packet));
 	}
 	
 	public void onTick() {
+		if (this.isPTAP) return;
 		this.noLoginKickTicks++;
 		
 		if (this.noLoginKickTicks > 6 && this.userName == null) {
@@ -187,43 +248,62 @@ public class NetworkHandler {
 		}
     }
 
+    public String handlePTAPRequest(String username, String password, String clientVersion) {
+    	try {
+    		// Check if the client is supported
+    		if (!MainConfig.instance.ignoreClientVersion && 
+    			!ClientUpdateCheck.isSupported(clientVersion)) {
+    			return "error.client_outdated";
+    		}
+        	
+        	// Check if the client is not registered
+        	if (!UserDatabaseEntry.isRegistered(this.server, username)) {
+        		return "error.invalid_username";
+        	}
+        	
+        	// Load the database entry
+        	this.databaseEntry = new UserDatabaseEntry(this.server, username);
+        	this.databaseEntry.load();
+        	
+        	// Check if the password is correct
+        	if (!this.databaseEntry.passwordHash.equalsIgnoreCase(password)) {
+        		return "error.invalid_password";
+        	}
+        	
+        	return String.format("%s.%d.%s", username, 
+        			System.currentTimeMillis(), 
+        			Utils.getMD5HashFromStr(
+        					"" + System.currentTimeMillis() + ThreadLocalRandom.current().nextInt(), 
+        					"" + System.currentTimeMillis() + ThreadLocalRandom.current().nextInt() * 
+        					ThreadLocalRandom.current().nextFloat()));
+    	} catch (Exception ex) {
+    		PintoServer.logger.error("Unable to process a PTAP request for %s: %s", username, ex);
+    		return "error.server_error";
+    	}
+    }
+    
 	public void handleLoginPacket(PacketLogin packet) {
-		if (!NetHandlerUtils.performModerationChecks(this, packet.name) || 
-			!NetHandlerUtils.performProtocolCheck(this, packet.protocolVersion, packet.clientVersion) ||
-			!NetHandlerUtils.performNameVerification(this, packet.name)) {
-			return;
-		}
+		String username = packet.token.split("\\.")[0];
 		
     	// Check if the user name is already used
-    	if (this.server.getHandlerByName(packet.name) != null) {
+    	if (this.server.getHandlerByName(username) != null) {
     		this.kick("Someone with this username is already connected!");
     		return;
     	}
-
+				
     	this.protocolVersion = packet.protocolVersion;
     	this.clientVersion = packet.clientVersion;
-    	this.userName = packet.name;
+    	this.userName = username;
 
-    	// Check if the client is not registered
-    	if (!UserDatabaseEntry.isRegistered(this.server, userName)) {
-    		this.kick("Invalid username or password!");
-    		return;
-    	}
-    	
     	// Load the database entry
     	this.databaseEntry = new UserDatabaseEntry(this.server, this.userName);
     	this.databaseEntry.load();
-    	
-    	if (!this.databaseEntry.passwordHash.equalsIgnoreCase(packet.passwordHash)) {
-    		this.kick("Invalid username or password!");
-    		return;
-    	}
     	
     	// Mark the client as logged in
     	this.loggedIn = true;
     	
     	// Send the login packet to let the client know they have logged in
-    	this.sendPacket(new PacketLogin(this.protocolVersion, "", ""));
+    	this.sendPacket(new PacketLogin(this.protocolVersion, ""));
     	PintoServer.logger.info("%s has logged in (Client version %s)", 
     			this.userName, this.clientVersion);
     	
@@ -236,8 +316,6 @@ public class NetworkHandler {
     	// Check if the client is not the latest to send a notice
     	if (!MainConfig.instance.ignoreClientVersion &&
     		!ClientUpdateCheck.isLatest(this.clientVersion)) {
-    		this.sendPacket(new PacketInWindowPopup("Your client version is not the latest,"
-    				+ " upgrade to the latest version to get the most recent features and bug fixes!"));
     		this.sendPacket(new PacketPopup("Client outdated", "Your client version is not the latest,"
     				+ " upgrade to the latest version to get the most recent features and bug fixes!"));
         	PintoServer.logger.warn("%s has an older client than the latest!", 
@@ -248,45 +326,6 @@ public class NetworkHandler {
     	this.server.sendHeartbeat();
     }
 
-	public void handleRegisterPacket(PacketRegister packet) {
-		if (!NetHandlerUtils.performModerationChecks(this, packet.name) || 
-			!NetHandlerUtils.performProtocolCheck(this, packet.protocolVersion, packet.clientVersion) ||
-			!NetHandlerUtils.performNameVerification(this, packet.name)) {
-			return;
-		}
-		
-    	this.protocolVersion = packet.protocolVersion;
-    	this.clientVersion = packet.clientVersion;
-    	this.userName = packet.name;
-
-    	if (UserDatabaseEntry.isRegistered(this.server, userName)) {
-    		this.kick("This account already exists!");
-    		return;
-    	}
-    	
-    	if (!packet.passwordHash.matches(NetHandlerUtils.PASSWORD_REGEX_CHECK)) {
-    		this.kick("Illegal password hash! Attempted SQL injection?");
-    		return;
-    	}
-    	
-    	// Create the database entry
-    	this.databaseEntry = UserDatabaseEntry.registerAndReturnEntry(this.server, packet.name,
-    			packet.passwordHash, UserStatus.ONLINE);
-    	
-    	// Mark the client as logged in
-    	this.loggedIn = true;
-    	
-    	// Send the login packet to let the client know they have logged in
-    	this.sendPacket(new PacketLogin(this.protocolVersion, "", ""));
-    	PintoServer.logger.info("%s has been registered and has logged in (Client version %s)", 
-    			this.userName, this.clientVersion);
-    	
-    	// Send first time message
-    	this.sendPacket(new PacketPopup("Welcome!", "Welcome to Pinto!,"
-    			+ " enjoy your new account,"
-    			+ " you can start talking with people by clicking on File > Add Contact"));
-    }
-	
 	public void handleMessagePacket(PacketMessage packet) {
 		String msg = packet.message.trim();
 		

@@ -9,7 +9,6 @@ public class Packets {
 
     static {
     	packetMap.put(0, PacketLogin.class);
-    	packetMap.put(1, PacketRegister.class);
     	packetMap.put(2, PacketLogout.class);
     	packetMap.put(3, PacketMessage.class);
     	packetMap.put(4, PacketPopup.class);
