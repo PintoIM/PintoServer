@@ -1,6 +1,7 @@
 package me.vlod.pinto.networking;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -72,21 +73,22 @@ public class NetworkClient {
     public void sendPacket(Packet packet) {
     	if (!this.isConnected) return;
 
+    	ByteArrayOutputStream packetData = new ByteArrayOutputStream();
+    	DataOutputStream packetDataOS = new DataOutputStream(packetData);
+    	
     	try {
         	synchronized (this.sendLock) {
-        		// Header
-        		this.outputStream.write("PMSG".getBytes(StandardCharsets.US_ASCII));
-        		
-        		// Size
-        		this.outputStream.writeInt(packet.getSize());
-        		
-        		// ID
-        		this.outputStream.writeInt(packet.getID());
-        		
-        		// Data
+        		packetDataOS.write("PMSG".getBytes(StandardCharsets.US_ASCII));        		
+        		packetDataOS.writeInt(packet.getSize());
+        		packetDataOS.writeInt(packet.getID());
         		if (packet.getSize() > 0) {
-            		packet.write(this.outputStream);
+            		packet.write(packetDataOS);
         		}
+        		
+        		packetData.flush();
+        		packetData.writeTo(this.outputStream);
+        		packetData.close();
+        		packetDataOS.close();
         		
         		this.outputStream.flush();
         	}
