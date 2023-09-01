@@ -24,14 +24,14 @@ public class PacketMessage implements Packet {
 	public void read(DataInputStream stream) throws IOException {
 		this.contactName = Utils.readPintoStringFromStream(stream, NetworkHandler.USERNAME_MAX);
 		this.sender = Utils.readPintoStringFromStream(stream, NetworkHandler.USERNAME_MAX);
-		this.message = Utils.readPintoStringFromStream(stream, 512);
+		this.message = Utils.readPintoStringFromStream(stream, 256);
 	}
 	
 	@Override
 	public void write(DataOutputStream stream) throws IOException {
 		Utils.writePintoStringToStream(stream, this.contactName, NetworkHandler.USERNAME_MAX);
 		Utils.writePintoStringToStream(stream, this.sender, 16);
-		Utils.writePintoStringToStream(stream, this.message, 512);
+		Utils.writePintoStringToStream(stream, this.message, 256);
 	}
 
 	@Override
@@ -42,12 +42,5 @@ public class PacketMessage implements Packet {
 	@Override
 	public void handle(NetworkHandler netHandler) {
 		netHandler.handleMessagePacket(this);
-	}
-
-	@Override
-	public int getSize() {
-		return Utils.getPintoStringSize(contactName) + 
-				Utils.getPintoStringSize(sender) + 
-				Utils.getPintoStringSize(message);
 	}
 }

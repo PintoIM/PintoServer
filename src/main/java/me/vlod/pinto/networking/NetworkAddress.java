@@ -3,7 +3,6 @@ package me.vlod.pinto.networking;
 import java.net.Socket;
 
 public class NetworkAddress {
-	public static final NetworkAddress console = new NetworkAddress("", -1);
 	public String ip;
 	public int port;
 	

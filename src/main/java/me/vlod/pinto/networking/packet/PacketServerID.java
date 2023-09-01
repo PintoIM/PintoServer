@@ -34,9 +34,4 @@ public class PacketServerID implements Packet {
 	@Override
 	public void handle(NetworkHandler netHandler) {
 	}
-
-	@Override
-	public int getSize() {
-		return Utils.getPintoStringSize(this.serverID);
-	}
 }

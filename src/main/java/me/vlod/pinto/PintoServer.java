@@ -4,6 +4,7 @@ import java.awt.Color;
 import java.awt.GraphicsEnvironment;
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -14,8 +15,13 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URL;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.interfaces.RSAPrivateKey;
+import java.security.interfaces.RSAPublicKey;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Scanner;
@@ -61,9 +67,11 @@ public class PintoServer implements Runnable {
 	public ConsoleHandler consoleHandler;
 	public SQLInterface database;
 	public ServerSocket serverSocket;
-	public final ArrayList<NetworkHandler> clients = new ArrayList<NetworkHandler>();
+	public final List<NetworkHandler> clients = Collections.synchronizedList(new ArrayList<NetworkHandler>());
 	public PluginManager pluginManager;
 	public final EventSender<Event> eventSender = new EventSender<Event>();
+	public RSAPublicKey rsaPublicKey;
+	public RSAPrivateKey rsaPrivateKey;
 	
 	static {
 		// Logger setup
@@ -133,6 +141,37 @@ public class PintoServer implements Runnable {
 				new UserDatabaseEntry(this, row[0]).load();
 			}
 			
+			// Get the RSA public/private keys
+			logger.info("Loading RSA public/private key pair...");
+			
+			File publicKeyFile = new File("rsa-public.pem");
+			File privateKeyFile = new File("rsa-private.pem");
+
+			if (!publicKeyFile.exists() || !privateKeyFile.exists()) {
+				logger.warn("RSA public/private key pair not found! Generating one for you...");
+				
+				KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
+				keyPairGenerator.initialize(4096);
+				KeyPair keyPair = keyPairGenerator.generateKeyPair();
+				this.rsaPublicKey = (RSAPublicKey) keyPair.getPublic();
+				this.rsaPrivateKey = (RSAPrivateKey) keyPair.getPrivate();
+				
+				FileOutputStream publicKeyFileOutputStream = new FileOutputStream(publicKeyFile);
+				FileOutputStream privateKeyFileOutputStream = new FileOutputStream(privateKeyFile);
+				Utils.writeRSAPublicPrivateKeyPEM(this.rsaPublicKey, publicKeyFileOutputStream);
+				publicKeyFileOutputStream.close();
+				Utils.writeRSAPublicPrivateKeyPEM(this.rsaPrivateKey, privateKeyFileOutputStream);
+				privateKeyFileOutputStream.close();
+			} else {
+				this.rsaPublicKey = Utils.readRSAPublicKeyPEM(publicKeyFile);
+				this.rsaPrivateKey = Utils.readRSAPrivateKeyPEM(privateKeyFile);
+			}
+			
+			String publicKeyAsHex = Utils.bytesToHex(this.rsaPublicKey.getEncoded());
+			String publicKeySplitted = String.join("\n", Utils.splitStringIntoChunks(publicKeyAsHex, 64));
+			logger.info("Loaded RSA public/private key pair");
+			logger.levelMultiLine(LogLevel.INFO, "RSA Public key:\n%s", publicKeySplitted);
+			
 			// Initialization
 			logger.info("Initializing...");
 			logger.info("The server will listen on %s:%d, you can change this in the configuration",
@@ -187,9 +226,9 @@ public class PintoServer implements Runnable {
 				while (running) {
 					try {
 						Socket socket = serverSocket.accept();
-						NetworkAddress address = new NetworkAddress(socket);
-						NetworkClient client = new NetworkClient(socket);
-						clients.add(new NetworkHandler(PintoServer.instance, address, client));
+						NetworkClient client = new NetworkClient(rsaPublicKey, rsaPrivateKey, socket);
+						if (!client.isConnected) continue;
+						clients.add(new NetworkHandler(PintoServer.instance, client));
 						
 						// Make the loop sleep to prevent high CPU usage
 			    		try {
@@ -214,7 +253,7 @@ public class PintoServer implements Runnable {
 				while (running) {
 					if (System.currentTimeMillis() - lastTime > 1000) {
 						try {
-							for (NetworkHandler handler : clients.toArray(new NetworkHandler[0])) {
+							for (NetworkHandler handler : clients) {
 								handler.onTick();
 							}
 						} catch (Exception ex) {
@@ -407,7 +446,7 @@ public class PintoServer implements Runnable {
                 JSONObject response = new JSONObject(responseRaw);
     			
                 if (!response.getString("status").equalsIgnoreCase("Error")) {
-                	logger.info("Successfully sent a heart beat: %s", response.getString("status"));
+                	logger.verbose("Successfully sent a heart beat: %s", response.getString("status"));
                 } else {
                 	logger.warn("Sent a heart beat, but the server replied with error \"%s\"",
                 			response.getString("error"));

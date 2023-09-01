@@ -24,9 +24,4 @@ public class PacketKeepAlive implements Packet {
 	public void handle(NetworkHandler netHandler) {
 		netHandler.handleKeepAlivePacket();
 	}
-
-	@Override
-	public int getSize() {
-		return 0;
-	}
 }

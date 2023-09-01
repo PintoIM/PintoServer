@@ -11,7 +11,7 @@ public class MainConfig implements Config {
 	public int maxUsers = 128;
 	public String pluginsDir = "plugins";
 	public String heartbeatName = "My Cool Pinto! Server";
-	public String heartbeatURL = "http://api.fieme.net:8880/pinto-server-list/heartbeat.php";
+	public String heartbeatURL = "http://ponso00.com:8880/pinto-server-list/heartbeat.php";
 	public String heartbeatTags = "";
 	public String serverID = "";
 }

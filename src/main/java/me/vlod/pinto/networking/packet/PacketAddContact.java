@@ -44,10 +44,4 @@ public class PacketAddContact implements Packet {
 	public void handle(NetworkHandler netHandler) {
 		netHandler.handleAddContactPacket(this);
 	}
-
-	@Override
-	public int getSize() {
-		return Utils.getPintoStringSize(this.contactName) + 4 + 
-				Utils.getPintoStringSize(this.motd);
-	}
 }

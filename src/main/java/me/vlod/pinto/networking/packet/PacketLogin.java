@@ -48,11 +48,4 @@ public class PacketLogin implements Packet {
 	public void handle(NetworkHandler netHandler) {
 		netHandler.handleLoginPacket(this);
 	}
-
-	@Override
-	public int getSize() {
-		return 1 + Utils.getPintoStringSize(clientVersion) + 
-				Utils.getPintoStringSize(name) + 
-				Utils.getPintoStringSize(passwordHash);
-	}
 }

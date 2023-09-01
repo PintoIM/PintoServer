@@ -32,13 +32,16 @@ import me.vlod.pinto.networking.packet.PacketStatus;
 public class NetworkHandler {
 	public static final int PROTOCOL_VERSION = 1;
 	public static final int USERNAME_MAX = 16;
+	public static final int MESSAGE_RATE_LIMIT_TIME = 1;
 	private PintoServer server;
-	public NetworkAddress networkAddress;
 	public NetworkClient networkClient;
+	public NetworkAddress networkAddress;
 	public ConsoleHandler consoleHandler;
 	public int noLoginKickTicks;
 	public int noKeepAlivePacketTicks;
+	public int messageRateLimitTicks;
 	public byte protocolVersion;
+	public boolean hasDisconnected;
 	public boolean loggedIn;
 	public UserDatabaseEntry databaseEntry;
 	public String userName;
@@ -47,10 +50,10 @@ public class NetworkHandler {
 	public boolean inCall;
 	public String inCallWith;
 
-	public NetworkHandler(PintoServer server, NetworkAddress address, NetworkClient client) {
+	public NetworkHandler(PintoServer server, NetworkClient client) {
 		this.server = server;
-		this.networkAddress = address;
 		this.networkClient = client;
+		this.networkAddress = this.networkClient.networkAddress;
 		this.consoleHandler = new ConsoleHandler(this.server, new ConsoleCaller(this));
 		
 		this.networkClient.receivedPacket = new Delegate() {
@@ -68,7 +71,6 @@ public class NetworkHandler {
 		};
 		
 		PintoServer.logger.info("%s has connected", this.networkAddress);
-		
 		if (this.server.clients.size() > MainConfig.instance.maxUsers) {
 			this.kick("The server is full!");
 			return;
@@ -100,6 +102,7 @@ public class NetworkHandler {
 	}
 	
 	private void onDisconnect(String reason) {
+		this.hasDisconnected = true;
 		this.changeStatus(UserStatus.OFFLINE, "", true);
 		this.server.clients.remove(this);
 		PintoServer.logger.info("%s has disconnected: %s", this.networkAddress, reason);
@@ -125,6 +128,11 @@ public class NetworkHandler {
 	}
 	
 	public void onTick() {
+		if (this.hasDisconnected) {
+			PintoServer.logger.warn("Still ticking disconnected client! (%s)", this.networkAddress);
+			this.server.clients.remove(this);
+			return;
+		}
 		this.noLoginKickTicks++;
 		
 		if (this.noLoginKickTicks > 6 && this.userName == null) {
@@ -139,6 +147,7 @@ public class NetworkHandler {
 		
 		this.sendPacket(new PacketKeepAlive());
 		this.noKeepAlivePacketTicks++;
+		if (this.messageRateLimitTicks > 0) this.messageRateLimitTicks--;
 	}
 
 	private void performSync() {
@@ -158,7 +167,7 @@ public class NetworkHandler {
 			}
 		}
 	}
-	
+
     public void kick(String reason) {
     	PintoServer.logger.info("Kicking %s (%s): %s", this.networkAddress,
     			(this.userName != null ? this.userName : "** UNAUTHENTICATED **"), reason);
@@ -289,7 +298,7 @@ public class NetworkHandler {
 	
 	public void handleMessagePacket(PacketMessage packet) {
 		String msg = packet.message.trim();
-		
+
 		if (msg.isEmpty()) {
 			this.sendPacket(new PacketMessage(packet.contactName, "",
 					"You may not send empty messages!"));
@@ -309,8 +318,14 @@ public class NetworkHandler {
 			return;
 		}
 		
+		if (this.messageRateLimitTicks > 0) {
+			this.kick("Protocol violation");
+			return;
+		}
+		
 		netHandler.sendPacket(new PacketMessage(this.userName, this.userName, msg));
 		this.sendPacket(new PacketMessage(packet.contactName, this.userName, msg));
+		this.messageRateLimitTicks = NetworkHandler.MESSAGE_RATE_LIMIT_TIME;
     }
     
 	public void handleAddContactPacket(PacketAddContact packet) {

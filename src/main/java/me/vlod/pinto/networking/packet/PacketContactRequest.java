@@ -35,9 +35,4 @@ public class PacketContactRequest implements Packet {
 	public void handle(NetworkHandler netHandler) {
 		netHandler.handleContactRequestPacket(this);
 	}
-
-	@Override
-	public int getSize() {
-		return Utils.getPintoStringSize(contactName);
-	}
 }
