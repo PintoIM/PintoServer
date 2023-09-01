@@ -72,6 +72,7 @@ public class PintoServer implements Runnable {
 	public final EventSender<Event> eventSender = new EventSender<Event>();
 	public RSAPublicKey rsaPublicKey;
 	public RSAPrivateKey rsaPrivateKey;
+	public PintoHttpServer httpServer;
 	
 	static {
 		// Logger setup
@@ -190,6 +191,13 @@ public class PintoServer implements Runnable {
 			// Create the console handler that will handle console commands
 			this.consoleHandler = new ConsoleHandler(this, new ConsoleCaller(null));
 			
+			// Initialize the HTTP server
+			this.httpServer = new PintoHttpServer();
+			new Thread(this.httpServer, "Http-Server-Thread").start();
+			while (!this.httpServer.isStarted) Thread.sleep(1);
+			if (this.httpServer.startException != null)throw this.httpServer.startException;
+			
+			// Load the plugins
 			logger.info("Loading plugins...");
 			this.pluginManager = new PluginManager();
 			this.pluginManager.loadPlugins(new File(MainConfig.instance.pluginsDir));
@@ -222,6 +230,7 @@ public class PintoServer implements Runnable {
 		
 		// Network accept thread
 		new Thread("Network-Accept-Thread") {
+			@Override
 			public void run() {
 				while (running) {
 					try {
@@ -247,6 +256,7 @@ public class PintoServer implements Runnable {
 		
 		// Tick thread
 		new Thread("Tick-Thread") {
+			@Override
 			public void run() {
 				long lastTime = 0;
 				
@@ -276,6 +286,7 @@ public class PintoServer implements Runnable {
 		
 		// Heart beat thread
 		new Thread("Heartbeat-Thread") {
+			@Override
 			public void run() {
 				long lastTime = 0;
 				
@@ -294,7 +305,7 @@ public class PintoServer implements Runnable {
 				}
 			}
 		}.start();
-		
+
 		// Main loop (code past this point wont ever be ran)
 		while (this.running) {
 			// Handler CLI input

@@ -1,5 +1,7 @@
 package me.vlod.pinto.configuration;
 
+import java.util.HashMap;
+
 public class MainConfig implements Config {
 	public static MainConfig instance;
 	public int listenPort = 2407;
@@ -14,4 +16,9 @@ public class MainConfig implements Config {
 	public String heartbeatURL = "http://ponso00.com:8880/pinto-server-list/heartbeat.php";
 	public String heartbeatTags = "";
 	public String serverID = "";
+	@SuppressWarnings("serial")
+	public HashMap<String, String> filesToServeOnHTTP = new HashMap<String, String>() {{
+		put("welcome.html", "text/html");
+		put("rules.html", "text/html");
+	}};
 }

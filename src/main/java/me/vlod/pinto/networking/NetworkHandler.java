@@ -29,6 +29,7 @@ import me.vlod.pinto.networking.packet.PacketRegister;
 import me.vlod.pinto.networking.packet.PacketRemoveContact;
 import me.vlod.pinto.networking.packet.PacketServerID;
 import me.vlod.pinto.networking.packet.PacketStatus;
+import me.vlod.pinto.networking.packet.PacketTyping;
 
 public class NetworkHandler {
 	public static final int PROTOCOL_VERSION = 1;
@@ -323,7 +324,7 @@ public class NetworkHandler {
 		}
 		
 		if (this.messageRateLimitTicks > 0) {
-			this.kick("Protocol violation");
+			this.kick("Illegal operation!");
 			return;
 		}
 		
@@ -363,7 +364,7 @@ public class NetworkHandler {
     
 	public void handleRemoveContactPacket(PacketRemoveContact packet) {
     	if (!this.databaseEntry.contacts.contains(packet.contactName)) {
-    		this.kick("Protocol violation!");
+    		this.kick("Illegal operation!");
     		return;
     	}
     	
@@ -386,7 +387,7 @@ public class NetworkHandler {
 	
 	public void handleStatusPacket(PacketStatus packet) {
     	if (packet.status == UserStatus.OFFLINE) {
-    		this.kick("Protocol violation!");
+    		this.kick("Illegal operation!");
     		return;
     	}
     	this.changeStatus(packet.status, packet.motd, false);
@@ -433,12 +434,30 @@ public class NetworkHandler {
 		}
 	}
 	
+	public void handleTypingPacket(PacketTyping packet) {
+		if (packet.contactName == this.userName) {
+			this.kick("Illegal operation!");
+			return;
+		}
+		
+		NetworkHandler netHandler = this.server.getHandlerByName(packet.contactName);
+		if (netHandler == null || netHandler.getStatus() == UserStatus.OFFLINE) {
+			return;
+		}
+		
+		netHandler.sendPacket(new PacketTyping(this.userName, packet.state));
+	}
+	
 	public void handleKeepAlivePacket() {
 		this.noKeepAlivePacketTicks--;
 	}
 	
 	public UserStatus getStatus() {
 		return NetHandlerUtils.getToOthersStatus(this.databaseEntry.status);
+	}
+	
+	public UserStatus getActualStatus() {
+		return this.databaseEntry.status;
 	}
 	
 	public boolean isOnline() {

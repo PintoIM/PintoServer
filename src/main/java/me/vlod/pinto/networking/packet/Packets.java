@@ -26,6 +26,7 @@ public class Packets {
     	packetMap.put(15, PacketCallStart.class);
     	packetMap.put(16, PacketCallEnd.class);
     	packetMap.put(17, PacketServerID.class);
+    	packetMap.put(18, PacketTyping.class);
     	packetMap.put(255, PacketKeepAlive.class);
     }
 

@@ -248,3 +248,4 @@ gradle-app.setting
 *.db
 *.pem
 plugins/
+html/
