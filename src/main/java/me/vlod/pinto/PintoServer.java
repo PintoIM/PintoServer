@@ -253,7 +253,7 @@ public class PintoServer implements Runnable {
 				while (running) {
 					if (System.currentTimeMillis() - lastTime > 1000) {
 						try {
-							for (NetworkHandler handler : clients) {
+							for (NetworkHandler handler : clients.toArray(new NetworkHandler[0])) {
 								handler.onTick();
 							}
 						} catch (Exception ex) {

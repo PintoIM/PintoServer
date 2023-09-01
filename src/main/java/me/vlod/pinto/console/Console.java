@@ -44,7 +44,7 @@ public class Console {
 	private void init() {
 		GridBagConstraints gridBagContraints = new GridBagConstraints();
 		
-		this.frame = new JFrame("Pinto Server - Console");
+		this.frame = new JFrame("Pinto! Server - Console");
 		this.frame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
 		this.frame.addWindowListener(new WindowAdapter() {
 			@Override

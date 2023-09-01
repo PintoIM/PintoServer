@@ -1,6 +1,7 @@
 package me.vlod.pinto.networking;
 
 import me.vlod.pinto.ClientUpdateCheck;
+import me.vlod.pinto.Coloring;
 import me.vlod.pinto.Delegate;
 import me.vlod.pinto.PintoServer;
 import me.vlod.pinto.UserDatabaseEntry;
@@ -157,13 +158,13 @@ public class NetworkHandler {
 		for (String contact : this .databaseEntry.contacts) {
 			NetworkHandler netHandler = this.server.getHandlerByName(contact);
 			this.sendPacket(new PacketAddContact(contact, 
-					netHandler == null ? UserStatus.OFFLINE : this.getStatus(),
+					netHandler == null ? UserStatus.OFFLINE : netHandler.getStatus(),
 					netHandler == null ? "" : 
-						this.isOnline() ? netHandler.motd : ""));
+						netHandler.isOnline() ? netHandler.motd : ""));
 			
 			if (netHandler != null && 
 				NetHandlerUtils.getToOthersStatus(this.databaseEntry.status) != UserStatus.OFFLINE) {
-				netHandler.sendPacket(new PacketStatus(this.userName, this.databaseEntry.status, ""));
+				netHandler.sendPacket(new PacketStatus(this.userName, this.getStatus(), ""));
 			}
 		}
 	}
@@ -246,7 +247,7 @@ public class NetworkHandler {
     	if (!MainConfig.instance.ignoreClientVersion &&
     		!ClientUpdateCheck.isLatest(this.clientVersion)) {
     		this.sendPacket(new PacketInWindowPopup("Your client version is not the latest,"
-    				+ " upgrade to the latest version to get the most recent features and bug fixes!"));
+    				+ " upgrade to the latest version to get the most recent features and bug fixes!", true));
     		this.sendPacket(new PacketPopup("Client outdated", "Your client version is not the latest,"
     				+ " upgrade to the latest version to get the most recent features and bug fixes!"));
         	PintoServer.logger.warn("%s has an older client than the latest!", 
@@ -301,20 +302,23 @@ public class NetworkHandler {
 
 		if (msg.isEmpty()) {
 			this.sendPacket(new PacketMessage(packet.contactName, "",
-					"You may not send empty messages!"));
+					Coloring.translateAlternativeColoringCodes(
+							"&8[&5!&8]&4 You may not send empty messages!")));
 			return;
 		}
 		
-    	if (!this.databaseEntry.contacts.contains(packet.contactName)) {
-			this.sendPacket(new PacketMessage(packet.contactName, "", String.format(
-					"You may not send messages to %s", packet.contactName)));
+    	if (!this.databaseEntry.contacts.contains(packet.contactName) || this.getStatus() == UserStatus.OFFLINE) {
+			this.sendPacket(new PacketMessage(packet.contactName, "", 
+					Coloring.translateAlternativeColoringCodes(String.format(
+							"&8[&5!&8]&4 You may not send messages to %s", packet.contactName))));
     		return;
     	}
     	
 		NetworkHandler netHandler = this.server.getHandlerByName(packet.contactName);
 		if (netHandler == null || netHandler.databaseEntry.status == UserStatus.INVISIBLE) {
-			this.sendPacket(new PacketMessage(packet.contactName, "", String.format(
-					"%s is offline and may not receive messages", packet.contactName)));
+			this.sendPacket(new PacketMessage(packet.contactName, "", 
+					Coloring.translateAlternativeColoringCodes(String.format(
+							"&8[&5!&8]&4 %s is offline and may not receive messages§", packet.contactName))));
 			return;
 		}
 		
@@ -341,12 +345,12 @@ public class NetworkHandler {
 		
 		if (this.databaseEntry.contacts.contains(packet.contactName)) {
 			this.sendPacket(new PacketInWindowPopup(String.format(
-					"%s is already on your contact list", packet.contactName)));
+					"%s is already on your contact list", packet.contactName), true));
 			return;
 		}
 		
 		NetworkHandler netHandler = this.server.getHandlerByName(packet.contactName);
-		if (netHandler == null || netHandler.databaseEntry.status == UserStatus.INVISIBLE) {
+		if (netHandler == null || netHandler.getStatus() == UserStatus.OFFLINE) {
 			this.sendPacket(new PacketInWindowPopup(String.format(
 					"%s is offline and may not be added to your contact list", packet.contactName)));
 			return;
@@ -354,7 +358,7 @@ public class NetworkHandler {
 		
 		netHandler.sendPacket(new PacketContactRequest(this.userName));
 		this.sendPacket(new PacketInWindowPopup(String.format(
-				"%s has been sent a request to be added on your contact list", packet.contactName)));
+				"%s has been sent a request to be added on your contact list", packet.contactName), true));
 	}
     
 	public void handleRemoveContactPacket(PacketRemoveContact packet) {
@@ -425,7 +429,7 @@ public class NetworkHandler {
 						this.isOnline() ? this.motd : ""));
 			}
 			
-			requesterNetHandler.sendPacket(new PacketInWindowPopup(requesterNotification));
+			requesterNetHandler.sendPacket(new PacketInWindowPopup(requesterNotification, true));
 		}
 	}
 	

@@ -18,12 +18,12 @@ public class PacketContactRequest implements Packet {
     
 	@Override
 	public void read(DataInputStream stream) throws IOException {
-		this.contactName = Utils.readPintoStringFromStream(stream, NetworkHandler.USERNAME_MAX);
+		this.contactName = Utils.readPintoStringFromStream(stream, NetworkHandler.USERNAME_MAX + 4);
 	}
 	
 	@Override
 	public void write(DataOutputStream stream) throws IOException {
-		Utils.writePintoStringToStream(stream, this.contactName, NetworkHandler.USERNAME_MAX);
+		Utils.writePintoStringToStream(stream, this.contactName, NetworkHandler.USERNAME_MAX + 4);
 	}
 
 	@Override
