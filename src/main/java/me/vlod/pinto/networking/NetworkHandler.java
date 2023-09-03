@@ -32,7 +32,7 @@ import me.vlod.pinto.networking.packet.PacketStatus;
 import me.vlod.pinto.networking.packet.PacketTyping;
 
 public class NetworkHandler {
-	public static final int PROTOCOL_VERSION = 1;
+	public static final int PROTOCOL_VERSION = 2;
 	public static final int USERNAME_MAX = 16;
 	public static final int MESSAGE_RATE_LIMIT_TIME = 1;
 	private PintoServer server;
@@ -156,7 +156,7 @@ public class NetworkHandler {
 		this.sendPacket(new PacketClearContacts());
 		this.sendPacket(new PacketStatus("", this.databaseEntry.status, ""));
 
-		for (String contact : this .databaseEntry.contacts) {
+		for (String contact : this.databaseEntry.contacts) {
 			NetworkHandler netHandler = this.server.getHandlerByName(contact);
 			this.sendPacket(new PacketAddContact(contact, 
 					netHandler == null ? UserStatus.OFFLINE : netHandler.getStatus(),
@@ -167,6 +167,10 @@ public class NetworkHandler {
 				NetHandlerUtils.getToOthersStatus(this.databaseEntry.status) != UserStatus.OFFLINE) {
 				netHandler.sendPacket(new PacketStatus(this.userName, this.getStatus(), ""));
 			}
+		}
+		
+		for (String contactRequest : this.databaseEntry.contactRequests) {
+			this.sendPacket(new PacketContactRequest(contactRequest));
 		}
 	}
 
@@ -198,6 +202,36 @@ public class NetworkHandler {
 		}
     }
 
+    private void finishLogin() {
+    	// Mark the client as logged in
+    	this.loggedIn = true;
+    	
+    	// Send the login packet to let the client know they have logged in
+    	this.sendPacket(new PacketLogin(this.protocolVersion, "", ""));
+    	PintoServer.logger.info("%s has logged in (Client version %s)", 
+    			this.userName, this.clientVersion);
+    	
+    	// Send the user our server ID
+    	this.sendPacket(new PacketServerID(MainConfig.instance.serverID));
+    	
+    	// Sync the database to the user
+    	this.performSync();
+    	
+    	// Check if the client is not the latest to send a notice
+    	if (!MainConfig.instance.ignoreClientVersion &&
+    		!ClientUpdateCheck.isLatest(this.clientVersion)) {
+    		this.sendPacket(new PacketInWindowPopup("Your client version is not the latest,"
+    				+ " upgrade to the latest version to get the most recent features and bug fixes!", true));
+    		this.sendPacket(new PacketPopup("Client outdated", "Your client version is not the latest,"
+    				+ " upgrade to the latest version to get the most recent features and bug fixes!"));
+        	PintoServer.logger.warn("%s has an older client than the latest!", 
+        			this.userName, this.clientVersion);
+    	}
+    	
+    	// Send a heart beat with the updated users count
+    	this.server.sendHeartbeat();
+    }
+    
 	public void handleLoginPacket(PacketLogin packet) {
 		if (!NetHandlerUtils.performModerationChecks(this, packet.name) || 
 			!NetHandlerUtils.performProtocolCheck(this, packet.protocolVersion, packet.clientVersion) ||
@@ -230,33 +264,8 @@ public class NetworkHandler {
     		return;
     	}
     	
-    	// Mark the client as logged in
-    	this.loggedIn = true;
-    	
-    	// Send the login packet to let the client know they have logged in
-    	this.sendPacket(new PacketLogin(this.protocolVersion, "", ""));
-    	PintoServer.logger.info("%s has logged in (Client version %s)", 
-    			this.userName, this.clientVersion);
-    	
-    	// Send the user our server ID
-    	this.sendPacket(new PacketServerID(MainConfig.instance.serverID));
-    	
-    	// Sync the database to the user
-    	this.performSync();
-    	
-    	// Check if the client is not the latest to send a notice
-    	if (!MainConfig.instance.ignoreClientVersion &&
-    		!ClientUpdateCheck.isLatest(this.clientVersion)) {
-    		this.sendPacket(new PacketInWindowPopup("Your client version is not the latest,"
-    				+ " upgrade to the latest version to get the most recent features and bug fixes!", true));
-    		this.sendPacket(new PacketPopup("Client outdated", "Your client version is not the latest,"
-    				+ " upgrade to the latest version to get the most recent features and bug fixes!"));
-        	PintoServer.logger.warn("%s has an older client than the latest!", 
-        			this.userName, this.clientVersion);
-    	}
-    	
-    	// Send a heart beat with the updated users count
-    	this.server.sendHeartbeat();
+    	// Finish logging in the client
+    	this.finishLogin();
     }
 
 	public void handleRegisterPacket(PacketRegister packet) {
@@ -284,18 +293,8 @@ public class NetworkHandler {
     	this.databaseEntry = UserDatabaseEntry.registerAndReturnEntry(this.server, packet.name,
     			packet.passwordHash, UserStatus.ONLINE);
     	
-    	// Mark the client as logged in
-    	this.loggedIn = true;
-    	
-    	// Send the login packet to let the client know they have logged in
-    	this.sendPacket(new PacketLogin(this.protocolVersion, "", ""));
-    	PintoServer.logger.info("%s has been registered and has logged in (Client version %s)", 
-    			this.userName, this.clientVersion);
-    	
-    	// Send first time message
-    	this.sendPacket(new PacketPopup("Welcome!", "Welcome to Pinto!,"
-    			+ " enjoy your new account,"
-    			+ " you can start talking with people by clicking on File > Add Contact"));
+    	// Finish logging in the client
+    	this.finishLogin();
     }
 	
 	public void handleMessagePacket(PacketMessage packet) {
@@ -350,14 +349,30 @@ public class NetworkHandler {
 			return;
 		}
 		
-		NetworkHandler netHandler = this.server.getHandlerByName(packet.contactName);
-		if (netHandler == null || netHandler.getStatus() == UserStatus.OFFLINE) {
+		if (!UserDatabaseEntry.isRegistered(this.server, packet.contactName)) {
 			this.sendPacket(new PacketInWindowPopup(String.format(
-					"%s is offline and may not be added to your contact list", packet.contactName)));
+					"%s is not a registered contact", packet.contactName)));
 			return;
 		}
 		
-		netHandler.sendPacket(new PacketContactRequest(this.userName));
+		UserDatabaseEntry userDatabaseEntry = new UserDatabaseEntry(this.server, packet.contactName);
+		userDatabaseEntry.load();
+		
+		if (userDatabaseEntry.contactRequests.contains(this.userName)) {
+			this.sendPacket(new PacketInWindowPopup(
+					String.format("You have already sent %s a contact request", packet.contactName), true));
+			return;
+		}
+		
+		userDatabaseEntry.contactRequests.add(this.userName);
+		userDatabaseEntry.save();
+
+		NetworkHandler netHandler = this.server.getHandlerByName(packet.contactName);
+		if (netHandler != null) {
+			netHandler.databaseEntry.load();
+			netHandler.sendPacket(new PacketContactRequest(this.userName));
+		}
+
 		this.sendPacket(new PacketInWindowPopup(String.format(
 				"%s has been sent a request to be added on your contact list", packet.contactName), true));
 	}
@@ -400,6 +415,14 @@ public class NetworkHandler {
 		String requesterNotification = "";
 		NetworkHandler requesterNetHandler = this.server.getHandlerByName(requester);
 		
+		if (!this.databaseEntry.contactRequests.contains(requester)) {
+			this.kick("Protocol violation!");
+			return;
+		}
+		
+		this.databaseEntry.contactRequests.remove(requester);
+		this.databaseEntry.save();
+		
 		if (answer.equalsIgnoreCase("yes")) {
 			if (this.databaseEntry.contacts.contains(requester)) {
 				return;
@@ -417,12 +440,14 @@ public class NetworkHandler {
 					requesterNetHandler == null ? UserStatus.OFFLINE : requesterNetHandler.getStatus(), 
 					 requesterNetHandler == null ? "" : 
 						 requesterNetHandler.isOnline() ? requesterNetHandler.motd : ""));	
+			this.sendPacket(new PacketInWindowPopup(
+					String.format("You are now contacts with %s", requester), true));
 			
-			requesterNotification = String.format("%s has accepted your request", this.userName);
+			requesterNotification = String.format("%s has accepted your request", this.userName, true);
 		} else {
 			requesterNotification = String.format("%s has declined your request", this.userName);
 		}
-
+		
 		if (requesterNetHandler != null) {
 			if (answer.equalsIgnoreCase("yes")) {
 				requesterNetHandler.databaseEntry.load();
@@ -444,6 +469,10 @@ public class NetworkHandler {
 		if (netHandler == null || netHandler.getStatus() == UserStatus.OFFLINE) {
 			return;
 		}
+		
+    	if (!this.databaseEntry.contacts.contains(packet.contactName)) {
+    		return;
+    	}
 		
 		netHandler.sendPacket(new PacketTyping(this.userName, packet.state));
 	}

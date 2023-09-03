@@ -23,10 +23,10 @@ public class NetHandlerUtils {
     	
 		// Check if either the user name or IP are banned
     	if (bannedReason != null) {
-    		handler.kick("You are banned from this chat!\nReason: " + bannedReason);
+    		handler.kick("You are banned!\nReason: " + bannedReason);
     		return false;
     	} else if (bannedReasonIP != null) {
-    		handler.kick("You are banned from this chat based on your IP address!\nReason: " + bannedReasonIP);
+    		handler.kick("You are banned!\nReason: " + bannedReasonIP);
     		return false;
     	}
     	
@@ -49,7 +49,7 @@ public class NetHandlerUtils {
 		// Check if the client protocol is not PROTOCOL_VERSION
     	if (protocol != NetworkHandler.PROTOCOL_VERSION) {
     		handler.kick(String.format("Illegal protocol version!\nMust be %d, but got %d!\n"
-    				+ "Are you on the latest version of Pinto?", 
+    				+ "Are you using a compatible Pinto! version?", 
     				NetworkHandler.PROTOCOL_VERSION, protocol));
     		return false;
     	}

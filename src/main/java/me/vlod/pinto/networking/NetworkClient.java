@@ -10,11 +10,15 @@ import java.io.OutputStream;
 import java.net.Socket;
 import java.net.SocketException;
 import java.nio.charset.StandardCharsets;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 
 import javax.crypto.Cipher;
+import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
+import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 import me.vlod.pinto.Delegate;
@@ -37,7 +41,7 @@ public class NetworkClient {
     public Delegate receivedPacket = Delegate.empty;
     private Object sendLock = new Object();
     private SecretKey secretKey;
-    
+
     public NetworkClient(RSAPublicKey rsaPublicKey, RSAPrivateKey rsaPrivateKey, Socket socket) {
         try {
             this.socket = socket;
@@ -81,18 +85,15 @@ public class NetworkClient {
     	Cipher cipher = Cipher.getInstance("RSA");
     	cipher.init(Cipher.DECRYPT_MODE, rsaPrivateKey);
     	
-    	// Receive the encrypted AES key and decrypt it
+    	// Receive the encrypted AES details and decrypt them
     	int encryptedAESKeySize = dataInputStream.readInt();
     	byte[] aesKey = cipher.doFinal(Utils.readNBytes(dataInputStream, encryptedAESKeySize));
     	PintoServer.logger.verbose("%s's AES key: %s", this.networkAddress, Utils.bytesToHex(aesKey));
 
     	// Finish handshaking
     	this.secretKey = new SecretKeySpec(aesKey, "AES");
-    	this.cipherDecryptor = Cipher.getInstance("AES/ECB/PKCS5Padding");
-    	this.cipherEncryptor = Cipher.getInstance("AES/ECB/PKCS5Padding");
-    	
-    	this.cipherDecryptor.init(Cipher.DECRYPT_MODE, this.secretKey);
-    	this.cipherEncryptor.init(Cipher.ENCRYPT_MODE, this.secretKey);
+    	this.cipherDecryptor = Cipher.getInstance("AES/CBC/PKCS5Padding");
+    	this.cipherEncryptor = Cipher.getInstance("AES/CBC/PKCS5Padding");
     	PintoServer.logger.info("Done handshaking with %s", this.networkAddress);
     	
     	this.readThread.start();
@@ -123,6 +124,13 @@ public class NetworkClient {
         	this.disconnected.call(reason);
     }
 
+    public IvParameterSpec getIV() throws NoSuchAlgorithmException, NoSuchPaddingException {
+        SecureRandom secureRandom = SecureRandom.getInstanceStrong();
+        byte[] iv = new byte[16];
+        secureRandom.nextBytes(iv);
+        return new IvParameterSpec(iv);
+    }
+    
     public void sendPacket(Packet packet) {
     	if (!this.isConnected) return;
 
@@ -137,10 +145,13 @@ public class NetworkClient {
         		dataOutputStream.flush();
         	}
         	
+        	IvParameterSpec iv = this.getIV();
+        	this.cipherEncryptor.init(Cipher.ENCRYPT_MODE, this.secretKey, iv);
         	byte[] packetData = byteArrayOutputStream.toByteArray();
         	byte[] encryptedPacketData = this.cipherEncryptor.doFinal(packetData);
         	byteArrayOutputStream.close();
         	
+        	this.outputStream.write(iv.getIV());
         	this.outputStream.write(Utils.intToBytes(encryptedPacketData.length));
         	this.outputStream.write(encryptedPacketData);
         	this.outputStream.flush();
@@ -153,6 +164,8 @@ public class NetworkClient {
     private void readThread_Func() {
     	while (this.isConnected) {
     		try {
+    			byte[] iv = new byte[16];
+    			this.inputStream.read(iv);
     			byte[] encryptedDataSize = new byte[4];
     			this.inputStream.read(encryptedDataSize);
     			
@@ -160,6 +173,7 @@ public class NetworkClient {
     			int readAmount = this.inputStream.read(encryptedData);
     			if (readAmount == -1) throw new SocketException("Client disconnect");
     			
+    	    	this.cipherDecryptor.init(Cipher.DECRYPT_MODE, this.secretKey, new IvParameterSpec(iv));
     			byte[] decryptedData = this.cipherDecryptor.doFinal(encryptedData);
     			DataInputStream dataInputStream = 
     					new DataInputStream(new ByteArrayInputStream(decryptedData));

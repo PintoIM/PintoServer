@@ -133,6 +133,7 @@ public class PintoServer implements Runnable {
 				columns.put("passwordhash", "varchar(32)");
 				columns.put("laststatus", "int");
 				columns.put("contacts", "text");
+				columns.put("contactrequests", "text");
 				this.database.createTable(TABLE_NAME, columns);
 			}
 			
