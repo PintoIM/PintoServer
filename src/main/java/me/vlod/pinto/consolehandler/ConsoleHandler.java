@@ -8,16 +8,18 @@ import org.apache.commons.lang3.ArrayUtils;
 import me.vlod.pinto.PintoServer;
 import me.vlod.pinto.Tuple;
 import me.vlod.pinto.Utils;
-import me.vlod.pinto.consolehandler.commands.BanCMD;
-import me.vlod.pinto.consolehandler.commands.BanIPCMD;
-import me.vlod.pinto.consolehandler.commands.GetIPCMD;
-import me.vlod.pinto.consolehandler.commands.KickCMD;
-import me.vlod.pinto.consolehandler.commands.KickIPCMD;
-import me.vlod.pinto.consolehandler.commands.NotificationCMD;
-import me.vlod.pinto.consolehandler.commands.ReloadCMD;
-import me.vlod.pinto.consolehandler.commands.StopCMD;
-import me.vlod.pinto.consolehandler.commands.UnbanCMD;
-import me.vlod.pinto.consolehandler.commands.UnbanIPCMD;
+import me.vlod.pinto.consolehandler.commands.Ban;
+import me.vlod.pinto.consolehandler.commands.BanIP;
+import me.vlod.pinto.consolehandler.commands.ChangePassword;
+import me.vlod.pinto.consolehandler.commands.GetIP;
+import me.vlod.pinto.consolehandler.commands.Kick;
+import me.vlod.pinto.consolehandler.commands.KickIP;
+import me.vlod.pinto.consolehandler.commands.ListUsers;
+import me.vlod.pinto.consolehandler.commands.Notification;
+import me.vlod.pinto.consolehandler.commands.Reload;
+import me.vlod.pinto.consolehandler.commands.Stop;
+import me.vlod.pinto.consolehandler.commands.Unban;
+import me.vlod.pinto.consolehandler.commands.UnbanIP;
 
 public class ConsoleHandler {
 	protected PintoServer server;
@@ -28,16 +30,18 @@ public class ConsoleHandler {
     public ConsoleHandler(PintoServer server, ConsoleCaller caller) {
     	this.server = server;
     	this.caller = caller;
-    	this.commands.add(new BanCMD());
-    	this.commands.add(new BanIPCMD());
-    	this.commands.add(new GetIPCMD());
-    	this.commands.add(new KickCMD());
-    	this.commands.add(new KickIPCMD());
-    	this.commands.add(new ReloadCMD());
-    	this.commands.add(new UnbanCMD());
-    	this.commands.add(new UnbanIPCMD());
-    	this.commands.add(new StopCMD());
-    	this.commands.add(new NotificationCMD());
+    	this.commands.add(new Ban());
+    	this.commands.add(new BanIP());
+    	this.commands.add(new GetIP());
+    	this.commands.add(new Kick());
+    	this.commands.add(new KickIP());
+    	this.commands.add(new Reload());
+    	this.commands.add(new Unban());
+    	this.commands.add(new UnbanIP());
+    	this.commands.add(new Stop());
+    	this.commands.add(new ListUsers());
+    	this.commands.add(new Notification());
+    	this.commands.add(new ChangePassword());
     }
 
 	public void handleInput(String input) {

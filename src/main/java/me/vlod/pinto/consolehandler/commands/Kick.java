@@ -5,7 +5,7 @@ import me.vlod.pinto.consolehandler.ConsoleCaller;
 import me.vlod.pinto.consolehandler.ConsoleCommand;
 import me.vlod.pinto.networking.NetworkHandler;
 
-public class KickCMD implements ConsoleCommand {
+public class Kick implements ConsoleCommand {
 	@Override
 	public String getName() {
 		return "kick";

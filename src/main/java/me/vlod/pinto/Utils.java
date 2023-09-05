@@ -160,13 +160,31 @@ public class Utils {
 	/**
 	 * Gets a salted MD5 hash from the specified string
 	 * 
-	 * @param salt the salt to use
+	 * @param salt the salt to use (can be empty)
 	 * @param content the string to hash
 	 * @return the MD5 hash or empty on error
 	 */
 	public static String getMD5HashFromStr(String salt, String content) {
 		try {
 			MessageDigest messageDigest = MessageDigest.getInstance("MD5");
+			messageDigest.update((salt + content).getBytes());
+			return (new BigInteger(1, messageDigest.digest())).toString(16);	
+		} catch (Exception ex) {
+			return "";
+		}
+	}
+	
+
+	/**
+	 * Gets a salted SHA256 hash from the specified string
+	 * 
+	 * @param salt the salt to use (can be empty)
+	 * @param content the string to hash
+	 * @return the SHA256 hash or empty on error
+	 */
+	public static String getSHA256HashFromStr(String salt, String content) {
+		try {
+			MessageDigest messageDigest = MessageDigest.getInstance("SHA-256");
 			messageDigest.update((salt + content).getBytes());
 			return (new BigInteger(1, messageDigest.digest())).toString(16);	
 		} catch (Exception ex) {

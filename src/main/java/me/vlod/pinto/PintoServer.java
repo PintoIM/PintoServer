@@ -420,7 +420,7 @@ public class PintoServer implements Runnable {
 			
 			int onlineClients = 0;
 			for (NetworkHandler client : this.clients) {
-				if (client.loggedIn && NetHandlerUtils
+				if (client.userName != null && NetHandlerUtils
 						.getToOthersStatus(client.databaseEntry.status) != UserStatus.OFFLINE) {
 					onlineClients++;
 				}

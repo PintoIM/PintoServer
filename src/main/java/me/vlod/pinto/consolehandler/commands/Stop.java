@@ -4,20 +4,20 @@ import me.vlod.pinto.PintoServer;
 import me.vlod.pinto.consolehandler.ConsoleCaller;
 import me.vlod.pinto.consolehandler.ConsoleCommand;
 
-public class ReloadCMD implements ConsoleCommand {
+public class Stop implements ConsoleCommand {
 	@Override
 	public String getName() {
-		return "reload";
+		return "stop";
 	}
 
 	@Override
 	public String getDescription() {
-		return "Reloads the server configuration";
+		return "Stops the server, and kicks everyone with an optional reason";
 	}
 
 	@Override
 	public String getUsage() {
-		return "reload";
+		return "stop [reason]";
 	}
 
 	@Override
@@ -27,12 +27,17 @@ public class ReloadCMD implements ConsoleCommand {
 
 	@Override
 	public int getMaxArgsCount() {
-		return 0;
+		return 1;
 	}
 
 	@Override
 	public void execute(PintoServer server, ConsoleCaller caller, String[] args) throws Exception {
-		PintoServer.logger.info("Reloading server configuration...");
-		server.initConfig();
+		String reason = args.length > 0 ? args[0] : null;
+		
+		if (reason == null) {
+			server.stop();
+		} else {
+			server.stop(reason);
+		}
 	}
 }

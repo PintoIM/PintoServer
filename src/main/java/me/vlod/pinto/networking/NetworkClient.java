@@ -1,5 +1,6 @@
 package me.vlod.pinto.networking;
 
+import java.io.BufferedOutputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -48,7 +49,7 @@ public class NetworkClient {
             this.networkAddress = new NetworkAddress(this.socket);
             this.isConnected = true;
 
-            this.socket.setSoTimeout(10000);
+            this.socket.setSoTimeout(20000);
             this.inputStream = this.socket.getInputStream();
             this.outputStream = this.socket.getOutputStream();
             
@@ -136,10 +137,10 @@ public class NetworkClient {
 
     	ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
     	DataOutputStream dataOutputStream = new DataOutputStream(byteArrayOutputStream);
+    	BufferedOutputStream bufferedOutputStream = new BufferedOutputStream(this.outputStream, 4096);
     	
     	try {
         	synchronized (this.sendLock) {
-        		dataOutputStream.write("PMSG".getBytes(StandardCharsets.US_ASCII)); // Header
         		dataOutputStream.writeInt(packet.getID()); // ID
             	packet.write(dataOutputStream); // Data
         		dataOutputStream.flush();
@@ -151,21 +152,59 @@ public class NetworkClient {
         	byte[] encryptedPacketData = this.cipherEncryptor.doFinal(packetData);
         	byteArrayOutputStream.close();
         	
-        	this.outputStream.write(iv.getIV());
-        	this.outputStream.write(Utils.intToBytes(encryptedPacketData.length));
-        	this.outputStream.write(encryptedPacketData);
-        	this.outputStream.flush();
+        	bufferedOutputStream.write("PMSG".getBytes(StandardCharsets.US_ASCII));
+        	bufferedOutputStream.write(iv.getIV());
+        	bufferedOutputStream.write(Utils.intToBytes(encryptedPacketData.length));
+        	bufferedOutputStream.write(encryptedPacketData);
+        	bufferedOutputStream.flush();
     	} catch (Exception ex) {
             this.disconnect(String.format("Internal error (%s)", ex.getMessage()));
             PintoServer.logger.throwable(ex);
     	}
     }
 
+    private void processReceivedEncryptedData(byte[] encryptedData, byte[] iv) throws Exception {
+    	this.cipherDecryptor.init(Cipher.DECRYPT_MODE, this.secretKey, new IvParameterSpec(iv));
+		byte[] decryptedData = this.cipherDecryptor.doFinal(encryptedData);
+		DataInputStream dataInputStream = 
+				new DataInputStream(new ByteArrayInputStream(decryptedData));
+
+        int id = dataInputStream.readInt();
+        Packet packet = Packets.getPacketByID(id);
+
+        if (packet == null) {
+        	throw new SocketException(String.format("Bad packet ID: %d", id));
+        }
+
+        packet.read(dataInputStream);
+        receivedPacket.call(packet);
+    }
+    
     private void readThread_Func() {
     	while (this.isConnected) {
     		try {
+                int headerPart0 = this.inputStream.read();
+                int headerPart1 = this.inputStream.read();
+                int headerPart2 = this.inputStream.read();
+                int headerPart3 = this.inputStream.read();
+
+                if (headerPart0 == -1 || 
+                    headerPart1 == -1 || 
+                    headerPart2 == -1 || 
+                    headerPart3 == -1) {
+                	throw new SocketException("Client disconnect");
+                }
+                
+                if (headerPart0 != 'P' || 
+                	headerPart1 != 'M' || 
+                	headerPart2 != 'S' || 
+                	headerPart3 != 'G') {
+                	throw new SocketException("Bad packet header!");
+                }
+    			
     			byte[] iv = new byte[16];
     			this.inputStream.read(iv);
+    			
     			byte[] encryptedDataSize = new byte[4];
     			this.inputStream.read(encryptedDataSize);
     			
@@ -173,33 +212,7 @@ public class NetworkClient {
     			int readAmount = this.inputStream.read(encryptedData);
     			if (readAmount == -1) throw new SocketException("Client disconnect");
     			
-    	    	this.cipherDecryptor.init(Cipher.DECRYPT_MODE, this.secretKey, new IvParameterSpec(iv));
-    			byte[] decryptedData = this.cipherDecryptor.doFinal(encryptedData);
-    			DataInputStream dataInputStream = 
-    					new DataInputStream(new ByteArrayInputStream(decryptedData));
-    			
-                int headerPart0 = dataInputStream.read();
-                int headerPart1 = dataInputStream.read();
-                int headerPart2 = dataInputStream.read();
-                int headerPart3 = dataInputStream.read();
-                
-                // PMSG
-                if (headerPart0 != 'P' || 
-                	headerPart1 != 'M' || 
-                	headerPart2 != 'S' || 
-                	headerPart3 != 'G') {
-                	throw new SocketException("Bad packet header!");
-                }
-
-                int id = dataInputStream.readInt();
-                Packet packet = Packets.getPacketByID(id);
-
-                if (packet == null) {
-                	throw new SocketException(String.format("Bad packet ID: %d", id));
-                }
-
-                packet.read(dataInputStream);
-                receivedPacket.call(packet);
+    			this.processReceivedEncryptedData(encryptedData, iv);
                 
                 Thread.sleep(1);
     		} catch (Exception ex) {

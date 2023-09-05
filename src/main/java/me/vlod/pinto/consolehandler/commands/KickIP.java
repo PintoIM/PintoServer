@@ -3,21 +3,22 @@ package me.vlod.pinto.consolehandler.commands;
 import me.vlod.pinto.PintoServer;
 import me.vlod.pinto.consolehandler.ConsoleCaller;
 import me.vlod.pinto.consolehandler.ConsoleCommand;
+import me.vlod.pinto.networking.NetworkHandler;
 
-public class BanIPCMD implements ConsoleCommand {
+public class KickIP implements ConsoleCommand {
 	@Override
 	public String getName() {
-		return "banip";
+		return "kick-ip";
 	}
 
 	@Override
 	public String getDescription() {
-		return "Bans the specified IP address";
+		return "Kicks the specified IP address";
 	}
 
 	@Override
 	public String getUsage() {
-		return "banip <ip> <reason>";
+		return "kick-ip <user> <reason>";
 	}
 
 	@Override
@@ -34,7 +35,13 @@ public class BanIPCMD implements ConsoleCommand {
 	public void execute(PintoServer server, ConsoleCaller caller, String[] args) throws Exception {
 		String target = args[0];
 		String reason = args[1];
-		server.banUser(target, reason, true);
-		caller.sendMessage("Banned the IP " + target + "!");
+		
+		NetworkHandler[] handlers = server.getHandlersByAddress(target);
+		for (NetworkHandler handler : handlers) {
+			handler.kick("You have been kicked!\nReason: " + reason);
+		}
+		
+		caller.sendMessage("Kicked the IP " + target + "!");
+		PintoServer.logger.log("Moderation", "Kicked the IP \"" + target + "\" for \"" + reason + "\"");
 	}
 }

@@ -40,11 +40,11 @@ public class NetworkHandler {
 	public NetworkAddress networkAddress;
 	public ConsoleHandler consoleHandler;
 	public int noLoginKickTicks;
+	public int ticksTillNextKeepAlive;
 	public int noKeepAlivePacketTicks;
 	public int messageRateLimitTicks;
 	public byte protocolVersion;
 	public boolean hasDisconnected;
-	public boolean loggedIn;
 	public UserDatabaseEntry databaseEntry;
 	public String userName;
 	public String motd = "";
@@ -107,7 +107,7 @@ public class NetworkHandler {
 		this.hasDisconnected = true;
 		this.changeStatus(UserStatus.OFFLINE, "", true);
 		this.server.clients.remove(this);
-		PintoServer.logger.info("%s has disconnected: %s", this.networkAddress, reason);
+		PintoServer.logger.info("%s has disconnected: %s", this.networkAddress, reason.replace("\n", "\\n"));
 		this.server.eventSender.send(new ClientDisconnectedEvent(this, reason));
 		this.server.sendHeartbeat();
 	}
@@ -125,6 +125,7 @@ public class NetworkHandler {
 					packet.getID(), this.networkAddress,
 	    			(this.userName != null ? this.userName : "** UNAUTHENTICATED **"));	
 		}
+		
 		this.networkClient.sendPacket(packet);
 		this.server.eventSender.send(new SentPacketEvent(this, packet));
 	}
@@ -135,21 +136,28 @@ public class NetworkHandler {
 			this.server.clients.remove(this);
 			return;
 		}
-		this.noLoginKickTicks++;
 		
+		this.noLoginKickTicks++;
 		if (this.noLoginKickTicks > 6 && this.userName == null) {
 			this.kick("No login packet received in an acceptable time frame!");
 			return;
 		}
 		
-		if (this.noKeepAlivePacketTicks > 5) {
+		if (this.noKeepAlivePacketTicks > 2) {
 			this.kick("Timed out");
 			return;
 		}
 		
-		this.sendPacket(new PacketKeepAlive());
-		this.noKeepAlivePacketTicks++;
-		if (this.messageRateLimitTicks > 0) this.messageRateLimitTicks--;
+		this.ticksTillNextKeepAlive++;
+		if (this.ticksTillNextKeepAlive >= 5) {
+			this.sendPacket(new PacketKeepAlive());
+			this.noKeepAlivePacketTicks++;	
+			this.ticksTillNextKeepAlive = 0;
+		}
+		
+		if (this.messageRateLimitTicks > 0) {
+			this.messageRateLimitTicks--;
+		}
 	}
 
 	private void performSync() {
@@ -176,7 +184,8 @@ public class NetworkHandler {
 
     public void kick(String reason) {
     	PintoServer.logger.info("Kicking %s (%s): %s", this.networkAddress,
-    			(this.userName != null ? this.userName : "** UNAUTHENTICATED **"), reason);
+    			(this.userName != null ? this.userName : "** UNAUTHENTICATED **"), 
+    			reason.replace("\n", "\\n"));
     	this.sendPacket(new PacketLogout(reason));
     	this.networkClient.disconnect(null, true);
     	this.onDisconnect(String.format("Kicked (%s)", reason));
@@ -203,9 +212,6 @@ public class NetworkHandler {
     }
 
     private void finishLogin() {
-    	// Mark the client as logged in
-    	this.loggedIn = true;
-    	
     	// Send the login packet to let the client know they have logged in
     	this.sendPacket(new PacketLogin(this.protocolVersion, "", ""));
     	PintoServer.logger.info("%s has logged in (Client version %s)", 

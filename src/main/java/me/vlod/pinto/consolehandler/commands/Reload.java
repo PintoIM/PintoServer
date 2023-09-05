@@ -4,36 +4,35 @@ import me.vlod.pinto.PintoServer;
 import me.vlod.pinto.consolehandler.ConsoleCaller;
 import me.vlod.pinto.consolehandler.ConsoleCommand;
 
-public class UnbanCMD implements ConsoleCommand {
+public class Reload implements ConsoleCommand {
 	@Override
 	public String getName() {
-		return "unban";
+		return "reload";
 	}
 
 	@Override
 	public String getDescription() {
-		return "Unbans the specified user";
+		return "Reloads the server configuration";
 	}
 
 	@Override
 	public String getUsage() {
-		return "ban <user>";
+		return "reload";
 	}
 
 	@Override
 	public int getMinArgsCount() {
-		return 1;
+		return 0;
 	}
 
 	@Override
 	public int getMaxArgsCount() {
-		return 1;
+		return 0;
 	}
 
 	@Override
 	public void execute(PintoServer server, ConsoleCaller caller, String[] args) throws Exception {
-		String target = args[0];
-		server.unbanUser(target, false);
-		caller.sendMessage("Unbanned the user " + target + "!");
+		PintoServer.logger.info("Reloading server configuration...");
+		server.initConfig();
 	}
 }

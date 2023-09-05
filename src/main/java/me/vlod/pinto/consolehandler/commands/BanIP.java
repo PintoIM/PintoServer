@@ -3,22 +3,21 @@ package me.vlod.pinto.consolehandler.commands;
 import me.vlod.pinto.PintoServer;
 import me.vlod.pinto.consolehandler.ConsoleCaller;
 import me.vlod.pinto.consolehandler.ConsoleCommand;
-import me.vlod.pinto.networking.packet.PacketPopup;
 
-public class NotificationCMD implements ConsoleCommand {
+public class BanIP implements ConsoleCommand {
 	@Override
 	public String getName() {
-		return "notification";
+		return "ban-ip";
 	}
 
 	@Override
 	public String getDescription() {
-		return "Sends a notification to everyone online";
+		return "Bans the specified IP address";
 	}
 
 	@Override
 	public String getUsage() {
-		return "notification <message> <title>";
+		return "ban-ip <ip> <reason>";
 	}
 
 	@Override
@@ -33,7 +32,9 @@ public class NotificationCMD implements ConsoleCommand {
 
 	@Override
 	public void execute(PintoServer server, ConsoleCaller caller, String[] args) throws Exception {
-		PintoServer.logger.log("Notification", "%s: %s", args[1], args[0]);
-		server.sendGlobalPacket(new PacketPopup(args[1], args[0]));
+		String target = args[0];
+		String reason = args[1];
+		server.banUser(target, reason, true);
+		caller.sendMessage("Banned the IP " + target + "!");
 	}
 }

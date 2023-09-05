@@ -4,25 +4,25 @@ import me.vlod.pinto.PintoServer;
 import me.vlod.pinto.consolehandler.ConsoleCaller;
 import me.vlod.pinto.consolehandler.ConsoleCommand;
 
-public class StopCMD implements ConsoleCommand {
+public class UnbanIP implements ConsoleCommand {
 	@Override
 	public String getName() {
-		return "stop";
+		return "unban-ip";
 	}
 
 	@Override
 	public String getDescription() {
-		return "Stops the server, and kicks everyone with an optional reason";
+		return "Unbans the specified IP address";
 	}
 
 	@Override
 	public String getUsage() {
-		return "stop [reason]";
+		return "unban-ip <ip>";
 	}
 
 	@Override
 	public int getMinArgsCount() {
-		return 0;
+		return 1;
 	}
 
 	@Override
@@ -32,12 +32,8 @@ public class StopCMD implements ConsoleCommand {
 
 	@Override
 	public void execute(PintoServer server, ConsoleCaller caller, String[] args) throws Exception {
-		String reason = args.length > 0 ? args[0] : null;
-		
-		if (reason == null) {
-			server.stop();
-		} else {
-			server.stop(reason);
-		}
+		String target = args[0];
+		server.unbanUser(target, true);
+		caller.sendMessage("Unbanned the IP " + target + "!");
 	}
 }
