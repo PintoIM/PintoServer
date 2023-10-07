@@ -68,4 +68,8 @@ public class NetHandlerUtils {
 	public static UserStatus getToOthersStatus(UserStatus status) {
 		return status == UserStatus.INVISIBLE ? UserStatus.OFFLINE : status;
 	}
+	
+	public static boolean isUserGroup(String userName) {
+		return userName.startsWith("G:") && userName.length() == 16;
+	}
 }

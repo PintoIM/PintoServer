@@ -249,3 +249,4 @@ gradle-app.setting
 *.pem
 plugins/
 html/
+logs/

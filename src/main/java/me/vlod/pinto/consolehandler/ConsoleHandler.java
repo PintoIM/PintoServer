@@ -20,31 +20,37 @@ import me.vlod.pinto.consolehandler.commands.Reload;
 import me.vlod.pinto.consolehandler.commands.Stop;
 import me.vlod.pinto.consolehandler.commands.Unban;
 import me.vlod.pinto.consolehandler.commands.UnbanIP;
+import me.vlod.pinto.consolehandler.commands.client.Add;
+import me.vlod.pinto.consolehandler.commands.client.Remove;
 
 public class ConsoleHandler {
 	protected PintoServer server;
-	protected ConsoleCaller caller;
     public final ArrayList<ConsoleCommand> commands = new ArrayList<ConsoleCommand>();
     public final ArrayList<ConsoleVariable> variables = new ArrayList<ConsoleVariable>();
 
-    public ConsoleHandler(PintoServer server, ConsoleCaller caller) {
+    public ConsoleHandler(PintoServer server, boolean isConsole) {
     	this.server = server;
-    	this.caller = caller;
-    	this.commands.add(new Ban());
-    	this.commands.add(new BanIP());
-    	this.commands.add(new GetIP());
-    	this.commands.add(new Kick());
-    	this.commands.add(new KickIP());
-    	this.commands.add(new Reload());
-    	this.commands.add(new Unban());
-    	this.commands.add(new UnbanIP());
-    	this.commands.add(new Stop());
-    	this.commands.add(new ListUsers());
-    	this.commands.add(new Notification());
-    	this.commands.add(new ChangePassword());
+
+    	if (isConsole) {
+        	this.commands.add(new Ban());
+        	this.commands.add(new BanIP());
+        	this.commands.add(new GetIP());
+        	this.commands.add(new Kick());
+        	this.commands.add(new KickIP());
+        	this.commands.add(new Reload());
+        	this.commands.add(new Unban());
+        	this.commands.add(new UnbanIP());
+        	this.commands.add(new Stop());
+        	this.commands.add(new ListUsers());
+        	this.commands.add(new Notification());
+        	this.commands.add(new ChangePassword());
+    	} else {
+    		this.commands.add(new Add());
+    		this.commands.add(new Remove());
+    	}
     }
 
-	public void handleInput(String input) {
+	public void handleInput(String input, ConsoleCaller caller) {
 		if (input == null || input.isEmpty()) return;
     	Tuple<String, String[]> inputParsed = this.parseInput(input.trim());
     	
@@ -52,26 +58,26 @@ public class ConsoleHandler {
         	if (inputParsed.item2.length > 0) {
         		String helpArg = inputParsed.item2[0];
         		if (Utils.isNumeric(helpArg, false)) {
-        			this.doHelpCommand(Integer.valueOf(helpArg), null);
+        			this.doHelpCommand(Integer.valueOf(helpArg), null, caller);
         		} else {
-        			this.doHelpCommand(0, helpArg);
+        			this.doHelpCommand(0, helpArg, caller);
         		}
         	} else {
-        		this.doHelpCommand(0, null);
+        		this.doHelpCommand(0, null, caller);
         	}
         } else if (inputParsed.item1.equalsIgnoreCase("helpvar")) {
         	if (inputParsed.item2.length > 0) {
         		String helpArg = inputParsed.item2[0];
         		if (Utils.isNumeric(helpArg, false)) {
-        			this.doHelpVarCommand(Integer.valueOf(helpArg), null);
+        			this.doHelpVarCommand(Integer.valueOf(helpArg), null, caller);
         		} else {
-        			this.doHelpVarCommand(0, helpArg);
+        			this.doHelpVarCommand(0, helpArg, caller);
         		}
         	} else {
-        		this.doHelpVarCommand(0, null);
+        		this.doHelpVarCommand(0, null, caller);
         	}
         } else {
-    		this.processCommand(inputParsed.item1, inputParsed.item2);
+    		this.processCommand(inputParsed.item1, inputParsed.item2, caller);
     	}
 	}
 
@@ -104,40 +110,40 @@ public class ConsoleHandler {
         return new Tuple<String, String[]>(cmd, cmdArgs);
     }
 
-    public boolean processCommand(String cmd, String[] cmdArgs) {
+    public boolean processCommand(String cmd, String[] cmdArgs, ConsoleCaller caller) {
         ConsoleCommand conCmd = getCommandByName(cmd);
         ConsoleVariable conVar = getVariableByName(cmd);
 
         if (conCmd != null) {
         	if (!(cmdArgs.length < conCmd.getMinArgsCount() || cmdArgs.length > conCmd.getMaxArgsCount())) {
             	try {
-            		conCmd.execute(this.server, this.caller, cmdArgs);
+            		conCmd.execute(this.server, caller, cmdArgs);
             	} catch (Exception ex) {
-            		this.caller.sendMessage("An error has occured whilst executing the specified command!");
+            		caller.sendMessage("An error has occured whilst executing the specified command!");
             		PintoServer.logger.error("Unable to execute \"" + cmd + "\": " + 
             				Utils.getThrowableStackTraceAsStr(ex));
             	}
             } else {
-            	this.caller.sendMessage("Usage: " + conCmd.getUsage());
+            	caller.sendMessage("Usage: " + conCmd.getUsage());
             }
             return true;
         } else if (conVar != null) {
         	if (cmdArgs.length < 1) {
-            	printConVarHelp(conVar);
+            	this.printConVarHelp(conVar, caller);
             } else {
                 Object argsValue = ConsoleVariableTypeTools.getStringAsVarType(cmdArgs[0], conVar.getValueType());
 
                 if (argsValue != null) {
                 	conVar.setValue(argsValue);
                 } else {
-                	this.caller.sendMessage("Invalid value provided for this variable!");
+                	caller.sendMessage("Invalid value provided for this variable!");
                 }
             }
             
             return true;
         }
         
-        this.caller.sendMessage("Unrecognized command or variable \"" + cmd + "\"!");	
+        caller.sendMessage("Unrecognized command or variable \"" + cmd + "\"!");	
         return false;
     }
 
@@ -165,33 +171,33 @@ public class ConsoleHandler {
         return null;
     }
 
-    public void printConCmdHelp(ConsoleCommand conCmd) {
-    	this.caller.sendMessage("\"" + conCmd.getName() + "\" " + 
+    public void printConCmdHelp(ConsoleCommand conCmd, ConsoleCaller caller) {
+    	caller.sendMessage("\"" + conCmd.getName() + "\" " + 
         		conCmd.getMinArgsCount() + "/" + 
         		conCmd.getMaxArgsCount()+ " (" + 
         		conCmd.getUsage() + ") - " + 
         		conCmd.getDescription());
     }
 
-    public void printConVarHelp(ConsoleVariable conVar) {
-    	this.caller.sendMessage("\"" + conVar.getName() + "\" \"" + 
+    public void printConVarHelp(ConsoleVariable conVar, ConsoleCaller caller) {
+    	caller.sendMessage("\"" + conVar.getName() + "\" \"" + 
         		conVar.getValue() + "\" (" + 
         		conVar.getValueType() + ") - " + 
         		conVar.getDescription());
     }
     
-    public void doHelpCommand(int pageNumber, String cmd) {
+    public void doHelpCommand(int pageNumber, String cmd, ConsoleCaller caller) {
     	if (cmd != null) {
             ConsoleCommand conCmd = this.getCommandByName(cmd);
             
             if (conCmd != null) {
-            	this.printConCmdHelp(conCmd);
+            	this.printConCmdHelp(conCmd, caller);
             } else {
-            	this.caller.sendMessage("Unrecognized command \"" + cmd + "\"!");	
+            	caller.sendMessage("Unrecognized command \"" + cmd + "\"!");	
             }
     	} else {
     		if (this.commands.size() < 1) {
-    			this.caller.sendMessage("There are no commands available!");
+    			caller.sendMessage("There are no commands available!");
     			return;
     		} else if (this.commands.size() >= 10) {
     			int commandsProccessed = 0;
@@ -202,31 +208,31 @@ public class ConsoleHandler {
     				if (commandsProccessed > 10) break;
     				
     				ConsoleCommand command = this.commands.get(commandIndex);
-    				this.printConCmdHelp(command);
+    				this.printConCmdHelp(command, caller);
     			}
     		} else {
                 for (ConsoleCommand conCmd : this.commands) {
-                	this.printConCmdHelp(conCmd);
+                	this.printConCmdHelp(conCmd, caller);
                 }
     		}
     		
-    		this.caller.sendMessage("Help format: name minargs/maxargs (usage) - description");
-    		this.caller.sendMessage("Viewing page " + pageNumber + "/" + this.commands.size() / 10);
+    		caller.sendMessage("Help format: name minargs/maxargs (usage) - description");
+    		caller.sendMessage("Viewing page " + pageNumber + "/" + this.commands.size() / 10);
     	}
     }
     
-    public void doHelpVarCommand(int pageNumber, String var) {
+    public void doHelpVarCommand(int pageNumber, String var, ConsoleCaller caller) {
     	if (var != null) {
             ConsoleVariable conVar = this.getVariableByName(var);
             
             if (conVar != null) {
-            	this.printConVarHelp(conVar);
+            	this.printConVarHelp(conVar, caller);
             } else {
-            	this.caller.sendMessage("Unrecognized variable \"" + var + "\"!");	
+            	caller.sendMessage("Unrecognized variable \"" + var + "\"!");	
             }
     	} else {
     		if (this.variables.size() < 1) {
-    			this.caller.sendMessage("There are no variables available!");
+    			caller.sendMessage("There are no variables available!");
     			return;
     		} else if (this.variables.size() >= 10) {
     			int variablesProccessed = 0;
@@ -237,16 +243,16 @@ public class ConsoleHandler {
     				if (variablesProccessed > 10) break;
     				
     				ConsoleVariable variable = this.variables.get(variableIndex);
-    				this.printConVarHelp(variable);
+    				this.printConVarHelp(variable, caller);
     			}
     		} else {
                 for (ConsoleVariable conVar : this.variables) {
-                	this.printConVarHelp(conVar);
+                	this.printConVarHelp(conVar, caller);
                 }
     		}
     		
-    		this.caller.sendMessage("Help format: name value (value_type) - description");
-    		this.caller.sendMessage("Viewing page " + pageNumber + "/" + this.variables.size() / 10);
+    		caller.sendMessage("Help format: name value (value_type) - description");
+    		caller.sendMessage("Viewing page " + pageNumber + "/" + this.variables.size() / 10);
     	}
     }
 }

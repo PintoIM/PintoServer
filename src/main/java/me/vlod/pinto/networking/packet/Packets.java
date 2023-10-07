@@ -19,12 +19,8 @@ public class Packets {
     	packetMap.put(8, PacketStatus.class);
     	packetMap.put(9, PacketContactRequest.class);
     	packetMap.put(10, PacketClearContacts.class);
-    	packetMap.put(11, PacketCallRequest.class);
-    	packetMap.put(12, PacketCallResponse.class);
-    	packetMap.put(13, PacketCallInit.class);
-    	packetMap.put(14, PacketCallInfo.class);
-    	packetMap.put(15, PacketCallStart.class);
-    	packetMap.put(16, PacketCallEnd.class);
+    	packetMap.put(11, PacketCallChangeStatus.class);
+    	packetMap.put(12, PacketSetOption.class);
     	packetMap.put(17, PacketServerID.class);
     	packetMap.put(18, PacketTyping.class);
     	packetMap.put(255, PacketKeepAlive.class);

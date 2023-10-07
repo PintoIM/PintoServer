@@ -39,7 +39,7 @@ public class UserDatabaseEntry {
 		}
 		
 		try {
-			this.server.database.changeRows(PintoServer.TABLE_NAME, this.getDatabaseSelector(), 
+			this.server.database.changeRows(PintoServer.USERS_TABLE_NAME, this.getDatabaseSelector(), 
 					new String[] { 
 							"name", 
 							"passwordHash",
@@ -63,15 +63,17 @@ public class UserDatabaseEntry {
 	public void load() {
 		try {
 			String[] row = this.server.database.getRows(
-					PintoServer.TABLE_NAME, this.getDatabaseSelector()).get(0);
+					PintoServer.USERS_TABLE_NAME, this.getDatabaseSelector()).get(0);
 			
 			this.passwordHash = row[1];
 			this.status = UserStatus.fromIndex(Integer.valueOf(row[2]));
+			this.contacts.clear();
+			this.contactRequests.clear();
 			String contactsRaw = row[3];
 			String contactRequestsRaw = row[4];
 			
 			if (!contactsRaw.equalsIgnoreCase("null")) {
-				for (String contact : contactsRaw.split(",")) {
+				for (String contact : contactsRaw.split(",")) { 
 					if (this.contacts.contains(contact)) continue;
 					this.contacts.add(contact);
 				}
@@ -93,7 +95,7 @@ public class UserDatabaseEntry {
 	public static UserDatabaseEntry registerAndReturnEntry(PintoServer server, String userName, 
 			String passwordHash, UserStatus status) {
 		try {
-			server.database.createRow(PintoServer.TABLE_NAME,
+			server.database.createRow(PintoServer.USERS_TABLE_NAME,
 					new String[] { 
 							String.format("\"%s\"", userName),
 							String.format("\"%s\"", passwordHash),
@@ -112,7 +114,7 @@ public class UserDatabaseEntry {
 	
 	public static boolean isRegistered(PintoServer server, String userName) {
 		try {
-			return server.database.getRows(PintoServer.TABLE_NAME, new UserDatabaseEntry(server,
+			return server.database.getRows(PintoServer.USERS_TABLE_NAME, new UserDatabaseEntry(server,
 					userName).getDatabaseSelector()).size() > 0;
 		} catch (Exception ex) {
 			PintoServer.logger.throwable(ex);

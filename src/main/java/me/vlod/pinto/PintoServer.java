@@ -15,10 +15,13 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URL;
+import java.nio.file.Paths;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -45,6 +48,7 @@ import me.vlod.pinto.networking.NetworkAddress;
 import me.vlod.pinto.networking.NetworkClient;
 import me.vlod.pinto.networking.NetworkHandler;
 import me.vlod.pinto.networking.packet.Packet;
+import me.vlod.pinto.networking.packet.PacketMessage;
 import me.vlod.pinto.plugin.PluginManager;
 import me.vlod.sql.SQLInterface;
 import me.vlod.sql.SQLiteInterface;
@@ -58,12 +62,14 @@ public class PintoServer implements Runnable {
 			+ "|  ___/ | '_ \\| __/ _ \\\\___ \\ / _ \\ '__\\ \\ / / _ \\ '__|\n"
 			+ "| |   | | | | | || (_) |___) |  __/ |   \\ V /  __/ |   \n"
 			+ "|_|   |_|_| |_|\\__\\___/_____/ \\___|_|    \\_/ \\___|_|";
-	public static final String TABLE_NAME = "pinto";
+	public static final String USERS_TABLE_NAME = "pinto_users";
+	public static final String GROUPS_TABLE_NAME = "pinto_groups";
 	public static PintoServer instance;
 	public static Logger logger;
 	public boolean running;
 	public Console console;
 	public Scanner cliScanner;
+	public ConsoleCaller consoleCaller = new ConsoleCaller(null, null);
 	public ConsoleHandler consoleHandler;
 	public SQLInterface database;
 	public ServerSocket serverSocket;
@@ -75,6 +81,31 @@ public class PintoServer implements Runnable {
 	public PintoHttpServer httpServer;
 	
 	static {
+		FileOutputStream runtimeLogFileStream = null; 
+		
+		try {
+			File logsFolder = new File("logs");
+			if (!logsFolder.exists()) {
+				logsFolder.mkdir();
+			}
+
+			String time = DateTimeFormatter.ofPattern("HH-mm-ss dd.MM.yy").format(LocalDateTime.now());
+			File runtimeLogFile = Paths.get("logs", String.format("%s.log", time)).toFile();
+			runtimeLogFile.createNewFile();
+			runtimeLogFileStream = new FileOutputStream(runtimeLogFile);
+		} catch (Exception ex) {
+			ex.printStackTrace();
+			Runtime.getRuntime().halt(1);
+		}
+		PrintWriter fileWriter = new PrintWriter(runtimeLogFileStream, true);
+		Runtime.getRuntime().addShutdownHook(new Thread() {
+			@Override
+			public void run() {
+				fileWriter.flush();
+				fileWriter.close();
+			}
+		});
+		
 		// Logger setup
 		logger = new Logger();
 		
@@ -105,6 +136,15 @@ public class PintoServer implements Runnable {
 				}
 			}
 		});
+		
+		// File target
+		logger.targets.add(new Delegate() {
+			@Override
+			public void call(Object... args) {
+				String str = (String) args[0];
+				fileWriter.println(str);
+			}
+		});
 	}
 	
 	@Override
@@ -127,20 +167,33 @@ public class PintoServer implements Runnable {
 			logger.info("Loading database...");
 			this.database = new SQLiteInterface(MainConfig.instance.databaseFile);
 			
-			if (!this.database.doesTableExist(TABLE_NAME)) {
+			System.out.println(Utils.getPintoGroupID());
+			
+			if (!this.database.doesTableExist(USERS_TABLE_NAME)) {
 				LinkedHashMap<String, String> columns = new LinkedHashMap<String, String>();
 				columns.put("name", "varchar(16)");
 				columns.put("passwordhash", "varchar(32)");
 				columns.put("laststatus", "int");
 				columns.put("contacts", "text");
 				columns.put("contactrequests", "text");
-				this.database.createTable(TABLE_NAME, columns);
+				this.database.createTable(USERS_TABLE_NAME, columns);
+			}
+			
+			if (!this.database.doesTableExist(GROUPS_TABLE_NAME)) {
+				LinkedHashMap<String, String> columns = new LinkedHashMap<String, String>();
+				columns.put("id", "varchar(16)");
+				columns.put("members", "text");
+				this.database.createTable(GROUPS_TABLE_NAME, columns);
 			}
 			
 			// Clean database
 			logger.info("Cleaning database...");
-			for (String[] row : this.database.getRows(TABLE_NAME)) {
+			for (String[] row : this.database.getRows(USERS_TABLE_NAME)) {
 				new UserDatabaseEntry(this, row[0]).load();
+			}
+			
+			for (String[] row : this.database.getRows(GROUPS_TABLE_NAME)) {
+				new GroupDatabaseEntry(this, row[0]).load();
 			}
 			
 			// Get the RSA public/private keys
@@ -190,7 +243,7 @@ public class PintoServer implements Runnable {
 				this.cliScanner = new Scanner(System.in);
 			}
 			// Create the console handler that will handle console commands
-			this.consoleHandler = new ConsoleHandler(this, new ConsoleCaller(null));
+			this.consoleHandler = new ConsoleHandler(this, true);
 			
 			// Initialize the HTTP server
 			this.httpServer = new PintoHttpServer();
@@ -397,7 +450,7 @@ public class PintoServer implements Runnable {
 	}
 	
 	public void onConsoleSubmit(String input) {
-		this.consoleHandler.handleInput(input);
+		this.consoleHandler.handleInput(input, this.consoleCaller);
 	}
 	
 	public void sendHeartbeat() {
@@ -563,7 +616,25 @@ public class PintoServer implements Runnable {
 		}
 	}
 	
+	public void sendMessageInGroup(String groupID, String sender, String msg) {
+		GroupDatabaseEntry groupDatabaseEntry = new GroupDatabaseEntry(this, groupID);
+		groupDatabaseEntry.load();
+		
+		for (String member : groupDatabaseEntry.members) {
+			NetworkHandler netHandler = this.getHandlerByName(member);
+			
+			if (netHandler == null || netHandler.getStatus() == UserStatus.OFFLINE) {
+				continue;
+			}
+			
+			netHandler.sendPacket(new PacketMessage(groupID, sender, msg));
+		}	
+	}
+	
 	public static void main(String[] args) {
+		if (System.getProperty("pinto.killOtherProcs").equals("1")) {			
+			Utils.killOtherJavaInstances();
+		}
 		PintoServer pintoServer = new PintoServer();
 		
 		// Create the graphical console if we aren't in a headless environment

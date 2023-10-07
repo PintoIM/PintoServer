@@ -1,13 +1,16 @@
 package me.vlod.pinto;
 
+import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.lang.management.ManagementFactory;
 import java.math.BigInteger;
 import java.net.Inet4Address;
 import java.net.InetAddress;
@@ -19,6 +22,7 @@ import java.security.KeyFactory;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
+import java.security.SecureRandom;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
@@ -448,6 +452,49 @@ public class Utils {
     	bytes[2] = (byte)((i >>> 8) & 0xFF);
     	bytes[3] = (byte)((i >>> 0) & 0xFF);
         return bytes;
+    }
+    
+    /**
+     * Returns a unique Pinto! group ID
+     * 
+     * @return the group ID
+     */
+    public static String getPintoGroupID() {
+    	// 7 bytes can have 72057594037927936 combinations
+    	byte[] groupIDBytes = new byte[7];
+    	SecureRandom secureRandom = new SecureRandom();
+    	secureRandom.nextBytes(groupIDBytes);
+    	return String.format("G:%s", Utils.bytesToHex(groupIDBytes).toLowerCase());
+    }
+    
+    /**
+     * Kills other java instances<br>
+     * This is some jank code, do not use in production<br>
+     * Uses hacky JVM shit as well
+     */
+    public static void killOtherJavaInstances() {
+		try {
+			int currentPID = Integer.valueOf(ManagementFactory.getRuntimeMXBean().getName().split("@")[0]);
+			Process taskList = Runtime.getRuntime()
+					.exec("tasklist /FI \"imagename eq javaw.exe\" /FO CSV /NH");
+			taskList.waitFor();
+			
+			BufferedReader reader = new BufferedReader(new InputStreamReader(taskList.getInputStream()));
+			ArrayList<String> processes = new ArrayList<String>();
+			
+			String s;
+			while ((s = reader.readLine()) != null) {
+				processes.add(s);
+			}
+			
+			for (String process : processes) {
+				int processPID = Integer.valueOf(process.split(",")[1].replace("\"", ""));
+				if (processPID == currentPID) continue;
+				Runtime.getRuntime().exec("taskkill /f /pid " + processPID);
+			}
+		} catch (Exception ex) {
+			ex.printStackTrace();
+		}
     }
 }
 

@@ -1,11 +1,14 @@
 package me.vlod.pinto.networking;
 
+import me.vlod.pinto.CallStatus;
 import me.vlod.pinto.ClientUpdateCheck;
 import me.vlod.pinto.Coloring;
 import me.vlod.pinto.Delegate;
+import me.vlod.pinto.GroupDatabaseEntry;
 import me.vlod.pinto.PintoServer;
 import me.vlod.pinto.UserDatabaseEntry;
 import me.vlod.pinto.UserStatus;
+import me.vlod.pinto.Utils;
 import me.vlod.pinto.configuration.MainConfig;
 import me.vlod.pinto.consolehandler.ConsoleCaller;
 import me.vlod.pinto.consolehandler.ConsoleHandler;
@@ -17,6 +20,7 @@ import me.vlod.pinto.event.SendingPacketEvent;
 import me.vlod.pinto.event.SentPacketEvent;
 import me.vlod.pinto.networking.packet.Packet;
 import me.vlod.pinto.networking.packet.PacketAddContact;
+import me.vlod.pinto.networking.packet.PacketCallChangeStatus;
 import me.vlod.pinto.networking.packet.PacketClearContacts;
 import me.vlod.pinto.networking.packet.PacketContactRequest;
 import me.vlod.pinto.networking.packet.PacketInWindowPopup;
@@ -38,7 +42,6 @@ public class NetworkHandler {
 	private PintoServer server;
 	public NetworkClient networkClient;
 	public NetworkAddress networkAddress;
-	public ConsoleHandler consoleHandler;
 	public int noLoginKickTicks;
 	public int ticksTillNextKeepAlive;
 	public int noKeepAlivePacketTicks;
@@ -49,14 +52,15 @@ public class NetworkHandler {
 	public String userName;
 	public String motd = "";
 	public String clientVersion;
+	public ConsoleHandler consoleHandler;
 	public boolean inCall;
 	public String inCallWith;
+	public int callHostPort;
 
 	public NetworkHandler(PintoServer server, NetworkClient client) {
 		this.server = server;
 		this.networkClient = client;
 		this.networkAddress = this.networkClient.networkAddress;
-		this.consoleHandler = new ConsoleHandler(this.server, new ConsoleCaller(this));
 		
 		this.networkClient.receivedPacket = new Delegate() {
 			@Override
@@ -165,6 +169,11 @@ public class NetworkHandler {
 		this.sendPacket(new PacketStatus("", this.databaseEntry.status, ""));
 
 		for (String contact : this.databaseEntry.contacts) {
+			if (NetHandlerUtils.isUserGroup(contact)) {
+				this.sendPacket(new PacketAddContact(contact, UserStatus.ONLINE, "Pinto! Group"));
+				continue;
+			}
+			
 			NetworkHandler netHandler = this.server.getHandlerByName(contact);
 			this.sendPacket(new PacketAddContact(contact, 
 					netHandler == null ? UserStatus.OFFLINE : netHandler.getStatus(),
@@ -203,6 +212,7 @@ public class NetworkHandler {
     	}
 
 		for (String contact : this.databaseEntry.contacts) {
+			if (NetHandlerUtils.isUserGroup(contact)) continue;
 			NetworkHandler netHandler = this.server.getHandlerByName(contact);
 			if (netHandler == null) continue;
 			netHandler.sendPacket(new PacketStatus(this.userName,
@@ -222,6 +232,9 @@ public class NetworkHandler {
     	
     	// Sync the database to the user
     	this.performSync();
+    	
+    	// Create the console handler for the user
+    	this.consoleHandler = new ConsoleHandler(this.server, false);
     	
     	// Check if the client is not the latest to send a notice
     	if (!MainConfig.instance.ignoreClientVersion &&
@@ -305,7 +318,8 @@ public class NetworkHandler {
 	
 	public void handleMessagePacket(PacketMessage packet) {
 		String msg = packet.message.trim();
-
+		boolean receiverIsGroup = NetHandlerUtils.isUserGroup(packet.contactName);
+		
 		if (msg.isEmpty()) {
 			this.sendPacket(new PacketMessage(packet.contactName, "",
 					Coloring.translateAlternativeColoringCodes(
@@ -320,67 +334,100 @@ public class NetworkHandler {
     		return;
     	}
     	
-		NetworkHandler netHandler = this.server.getHandlerByName(packet.contactName);
-		if (netHandler == null || netHandler.databaseEntry.status == UserStatus.INVISIBLE) {
-			this.sendPacket(new PacketMessage(packet.contactName, "", 
-					Coloring.translateAlternativeColoringCodes(String.format(
-							"&8[&5!&8]&4 %s is offline and may not receive messages§", packet.contactName))));
-			return;
-		}
-		
 		if (this.messageRateLimitTicks > 0) {
 			this.kick("Illegal operation!");
 			return;
 		}
+    	
+		if (!receiverIsGroup) {
+			NetworkHandler netHandler = this.server.getHandlerByName(packet.contactName);
+			if (netHandler == null || netHandler.getStatus() == UserStatus.OFFLINE) {
+				this.sendPacket(new PacketMessage(packet.contactName, "", 
+						Coloring.translateAlternativeColoringCodes(String.format(
+								"&8[&5!&8]&4 %s is offline and may not receive messages", packet.contactName))));
+				return;
+			}
+
+			netHandler.sendPacket(new PacketMessage(this.userName, this.userName, msg));
+			this.sendPacket(new PacketMessage(packet.contactName, this.userName, msg));
+		} else {
+			if (msg.startsWith("/")) {
+				msg = msg.replaceFirst("\\/", "");
+				this.consoleHandler.handleInput(msg, new ConsoleCaller(this, packet.contactName));
+			} else {
+				this.server.sendMessageInGroup(packet.contactName, this.userName, msg);
+			}
+		}
 		
-		netHandler.sendPacket(new PacketMessage(this.userName, this.userName, msg));
-		this.sendPacket(new PacketMessage(packet.contactName, this.userName, msg));
 		this.messageRateLimitTicks = NetworkHandler.MESSAGE_RATE_LIMIT_TIME;
     }
     
 	public void handleAddContactPacket(PacketAddContact packet) {
-		if (!packet.contactName.matches(NetHandlerUtils.USERNAME_REGEX_CHECK)) {
-			this.sendPacket(new PacketInWindowPopup("Invalid contact name specified"));
+		if (this.databaseEntry.contacts.size() + 1 > 500) {
+			this.sendPacket(new PacketInWindowPopup("You have reached the limit of 500 contacts"));
 			return;
 		}
 		
-		if (packet.contactName.equals(this.userName)) {
-			this.sendPacket(new PacketInWindowPopup("You may not add yourself to your contact list"));
-			return;
-		}
-		
-		if (this.databaseEntry.contacts.contains(packet.contactName)) {
-			this.sendPacket(new PacketInWindowPopup(String.format(
-					"%s is already on your contact list", packet.contactName), true));
-			return;
-		}
-		
-		if (!UserDatabaseEntry.isRegistered(this.server, packet.contactName)) {
-			this.sendPacket(new PacketInWindowPopup(String.format(
-					"%s is not a registered contact", packet.contactName)));
-			return;
-		}
-		
-		UserDatabaseEntry userDatabaseEntry = new UserDatabaseEntry(this.server, packet.contactName);
-		userDatabaseEntry.load();
-		
-		if (userDatabaseEntry.contactRequests.contains(this.userName)) {
-			this.sendPacket(new PacketInWindowPopup(
-					String.format("You have already sent %s a contact request", packet.contactName), true));
-			return;
-		}
-		
-		userDatabaseEntry.contactRequests.add(this.userName);
-		userDatabaseEntry.save();
+		if (packet.contactName.equalsIgnoreCase("G:new")) {
+			String groupID = Utils.getPintoGroupID();
+			
+			GroupDatabaseEntry groupDatabaseEntry = GroupDatabaseEntry.createAndReturnEntry(this.server, groupID);
+			groupDatabaseEntry.members.add(this.userName);
+			groupDatabaseEntry.save();
+			
+			this.databaseEntry.contacts.add(groupID);
+			this.databaseEntry.save();
+			this.sendPacket(new PacketAddContact(groupID, UserStatus.ONLINE, "Pinto! Group"));	
+		} else {
+			if (!packet.contactName.matches(NetHandlerUtils.USERNAME_REGEX_CHECK)) {
+				this.sendPacket(new PacketInWindowPopup("Invalid contact name specified"));
+				return;
+			}
+			
+			if (packet.contactName.equals(this.userName)) {
+				this.sendPacket(new PacketInWindowPopup("You may not add yourself to your contact list"));
+				return;
+			}
+			
+			if (this.databaseEntry.contacts.contains(packet.contactName)) {
+				this.sendPacket(new PacketInWindowPopup(String.format(
+						"%s is already on your contact list", packet.contactName), true));
+				return;
+			}
+			
+			if (!UserDatabaseEntry.isRegistered(this.server, packet.contactName)) {
+				this.sendPacket(new PacketInWindowPopup(String.format(
+						"%s is not a registered user", packet.contactName)));
+				return;
+			}
+			
+			UserDatabaseEntry userDatabaseEntry = new UserDatabaseEntry(this.server, packet.contactName);
+			userDatabaseEntry.load();
+			
+			if (userDatabaseEntry.contacts.size() + 1 > 500) {
+				this.sendPacket(new PacketInWindowPopup(
+						String.format("%s has reached the 500 contacts limit", packet.contactName)));
+				return;
+			}
+			
+			if (userDatabaseEntry.contactRequests.contains(this.userName)) {
+				this.sendPacket(new PacketInWindowPopup(
+						String.format("You have already sent %s a contact request", packet.contactName), true));
+				return;
+			}
+			
+			userDatabaseEntry.contactRequests.add(this.userName);
+			userDatabaseEntry.save();
 
-		NetworkHandler netHandler = this.server.getHandlerByName(packet.contactName);
-		if (netHandler != null) {
-			netHandler.databaseEntry.load();
-			netHandler.sendPacket(new PacketContactRequest(this.userName));
-		}
+			NetworkHandler netHandler = this.server.getHandlerByName(packet.contactName);
+			if (netHandler != null) {
+				netHandler.databaseEntry.load();
+				netHandler.sendPacket(new PacketContactRequest(this.userName));
+			}
 
-		this.sendPacket(new PacketInWindowPopup(String.format(
-				"%s has been sent a request to be added on your contact list", packet.contactName), true));
+			this.sendPacket(new PacketInWindowPopup(String.format(
+					"%s has been sent a request to be added on your contact list", packet.contactName), true));
+		}
 	}
     
 	public void handleRemoveContactPacket(PacketRemoveContact packet) {
@@ -393,17 +440,24 @@ public class NetworkHandler {
 		this.databaseEntry.save();
 		this.sendPacket(new PacketRemoveContact(packet.contactName));
 		
-		UserDatabaseEntry contactDatabaseEntry = new UserDatabaseEntry(this.server, packet.contactName);
-		contactDatabaseEntry.load();
-		contactDatabaseEntry.contacts.remove(this.userName);
-		contactDatabaseEntry.save();
-		
-		NetworkHandler contactNetHandler = this.server.getHandlerByName(packet.contactName);
-		if (contactNetHandler == null) {
-			return;
+		if (NetHandlerUtils.isUserGroup(packet.contactName)) {
+			GroupDatabaseEntry groupDatabaseEntry = new GroupDatabaseEntry(this.server, packet.contactName);
+			groupDatabaseEntry.load();
+			groupDatabaseEntry.members.remove(this.userName);
+			groupDatabaseEntry.save();
+		} else {
+			UserDatabaseEntry contactDatabaseEntry = new UserDatabaseEntry(this.server, packet.contactName);
+			contactDatabaseEntry.load();
+			contactDatabaseEntry.contacts.remove(this.userName);
+			contactDatabaseEntry.save();
+			
+			NetworkHandler contactNetHandler = this.server.getHandlerByName(packet.contactName);
+			if (contactNetHandler == null) {
+				return;
+			}
+			contactNetHandler.databaseEntry = contactDatabaseEntry;
+			contactNetHandler.sendPacket(new PacketRemoveContact(this.userName));
 		}
-		contactNetHandler.databaseEntry = contactDatabaseEntry;
-		contactNetHandler.sendPacket(new PacketRemoveContact(this.userName));
 	}
 	
 	public void handleStatusPacket(PacketStatus packet) {
@@ -466,6 +520,10 @@ public class NetworkHandler {
 	}
 	
 	public void handleTypingPacket(PacketTyping packet) {
+		if (NetHandlerUtils.isUserGroup(packet.contactName)) {
+			return;
+		}
+		
 		if (packet.contactName == this.userName) {
 			this.kick("Illegal operation!");
 			return;
@@ -485,6 +543,85 @@ public class NetworkHandler {
 	
 	public void handleKeepAlivePacket() {
 		this.noKeepAlivePacketTicks--;
+	}
+	
+	public void handleCallChangeStatusPacket(PacketCallChangeStatus packet) {
+		NetworkHandler otherUser = null;
+
+		PintoServer.logger.info("%s changed their call status to %s (%s)", 
+				this.userName, packet.callStatus, packet.details);
+		
+		switch (packet.callStatus) {
+		case CONNECTING:
+			if (!packet.details.contains("@")) {
+				this.kick("Protocol violation!");
+				return;
+			}
+
+			String[] detailsSplit = packet.details.split("@");
+			String callTarget = detailsSplit[0];
+			String upnpIP = detailsSplit[1];
+			String portRaw = detailsSplit[2];
+			otherUser = this.server.getHandlerByName(callTarget);
+			
+			if (NetHandlerUtils.isUserGroup(callTarget)) {
+				this.sendPacket(new PacketCallChangeStatus(CallStatus.ERROR, 
+						"You may not call groups!"));
+				return;
+			}
+			
+			if (otherUser == null) {
+				this.sendPacket(new PacketCallChangeStatus(CallStatus.ERROR, 
+						"The specified user is offline"));
+				return;
+			}
+			
+			if (otherUser.inCall) {
+				this.sendPacket(new PacketCallChangeStatus(CallStatus.ERROR, 
+						"The specified user is already in a call"));
+				return;
+			}
+			
+			this.inCall = true;
+			this.inCallWith = callTarget;
+			try {				
+				this.callHostPort = Integer.valueOf(portRaw);
+			} catch (Exception ex) {
+				this.kick("Protocol violation!");
+				return;
+			}
+			
+			otherUser.inCall = true;
+			otherUser.inCallWith = this.userName;
+			otherUser.sendPacket(new PacketCallChangeStatus(CallStatus.CONNECTING, 
+					String.format("%s@%s@%d", this.userName, upnpIP, this.callHostPort)));
+			
+			break;
+		case ENDED:
+			otherUser = this.server.getHandlerByName(this.inCallWith);
+			
+			this.inCall = false;
+			this.inCallWith = null;
+			this.callHostPort = 0;
+			
+			if (otherUser == null) {
+				PintoServer.logger.warn("%s attempted to end call with offline user!", this.userName);
+				return;
+			}
+			
+			if (!otherUser.inCall) {
+				return;
+			}
+			
+			otherUser.inCall = false;
+			otherUser.inCallWith = null;
+			otherUser.callHostPort = 0;
+			otherUser.sendPacket(new PacketCallChangeStatus(CallStatus.ENDED, ""));
+
+			break;
+		default:
+			break;
+		}
 	}
 	
 	public UserStatus getStatus() {
