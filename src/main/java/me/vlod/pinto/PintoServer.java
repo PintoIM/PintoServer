@@ -632,7 +632,7 @@ public class PintoServer implements Runnable {
 	}
 	
 	public static void main(String[] args) {
-		if (System.getProperty("pinto.killOtherProcs").equals("1")) {			
+		if (System.getProperty("pinto.devKillOtherProcs") != null) {			
 			Utils.killOtherJavaInstances();
 		}
 		PintoServer pintoServer = new PintoServer();
