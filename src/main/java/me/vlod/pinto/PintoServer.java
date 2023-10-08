@@ -54,7 +54,7 @@ import me.vlod.sql.SQLInterface;
 import me.vlod.sql.SQLiteInterface;
 
 public class PintoServer implements Runnable {
-	public static final String VERSION_STRING = "b1.0";
+	public static final String VERSION_STRING = "b1.1";
 	public static final String ASCII_LOGO = ""
 			+ " _____ _       _        _____                          \n"
 			+ "|  __ (_)     | |      / ____|                         \n"

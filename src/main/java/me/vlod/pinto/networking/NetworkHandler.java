@@ -32,11 +32,12 @@ import me.vlod.pinto.networking.packet.PacketPopup;
 import me.vlod.pinto.networking.packet.PacketRegister;
 import me.vlod.pinto.networking.packet.PacketRemoveContact;
 import me.vlod.pinto.networking.packet.PacketServerID;
+import me.vlod.pinto.networking.packet.PacketSetOption;
 import me.vlod.pinto.networking.packet.PacketStatus;
 import me.vlod.pinto.networking.packet.PacketTyping;
 
 public class NetworkHandler {
-	public static final int PROTOCOL_VERSION = 2;
+	public static final int PROTOCOL_VERSION = 3;
 	public static final int USERNAME_MAX = 16;
 	public static final int MESSAGE_RATE_LIMIT_TIME = 1;
 	private PintoServer server;
@@ -245,6 +246,11 @@ public class NetworkHandler {
     				+ " upgrade to the latest version to get the most recent features and bug fixes!"));
         	PintoServer.logger.warn("%s has an older client than the latest!", 
         			this.userName, this.clientVersion);
+    	}
+    	
+    	// Experimental features
+    	if (MainConfig.instance.enableExperimentsToUsers.contains(this.userName)) {
+    		this.sendPacket(new PacketSetOption("exp_calls", "1"));
     	}
     	
     	// Send a heart beat with the updated users count
@@ -553,6 +559,12 @@ public class NetworkHandler {
 		
 		switch (packet.callStatus) {
 		case CONNECTING:
+			if (!MainConfig.instance.enableExperimentsToUsers.contains(this.userName)) {
+				this.sendPacket(new PacketCallChangeStatus(CallStatus.ERROR, 
+						"Feature unavailable"));
+				return;
+			}
+			
 			if (!packet.details.contains("@")) {
 				this.kick("Protocol violation!");
 				return;
