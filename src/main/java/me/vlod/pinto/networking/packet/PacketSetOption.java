@@ -5,9 +5,8 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 
 import me.vlod.pinto.Utils;
-import me.vlod.pinto.networking.NetworkHandler;
 
-public class PacketSetOption implements Packet {
+public class PacketSetOption extends Packet {
     public String option;
     public String value;
     
@@ -36,6 +35,12 @@ public class PacketSetOption implements Packet {
 	}
 
 	@Override
-	public void handle(NetworkHandler netHandler) {
+	public int getPacketSize() {
+		return 64 + 128;
+	}
+	
+	@Override
+	public String getDataAsStr() {
+		return this.option + "," + this.value;
 	}
 }

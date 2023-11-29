@@ -5,7 +5,7 @@ import me.vlod.pinto.UserDatabaseEntry;
 import me.vlod.pinto.Utils;
 import me.vlod.pinto.consolehandler.ConsoleCaller;
 import me.vlod.pinto.consolehandler.ConsoleCommand;
-import me.vlod.pinto.networking.NetworkHandler;
+import me.vlod.pinto.networking.NetServerHandler;
 
 public class ChangePassword implements ConsoleCommand {
 	@Override
@@ -49,7 +49,7 @@ public class ChangePassword implements ConsoleCommand {
 		userDatabaseEntry.save();
 		PintoServer.logger.info("Successfully changed %s's password", user);
 		
-		NetworkHandler netHandler = server.getHandlerByName(user);
+		NetServerHandler netHandler = server.getHandlerByName(user);
 		if (netHandler != null) {
 			netHandler.kick("Your password has been modified!");
 		}

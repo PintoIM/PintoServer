@@ -6,20 +6,20 @@ import me.vlod.pinto.configuration.BannedConfig;
 import me.vlod.pinto.configuration.MainConfig;
 import me.vlod.pinto.configuration.WhitelistConfig;
 
-public class NetHandlerUtils {
+public class NetUtils {
 	public static final String USERNAME_REGEX_CHECK = "^(?=.{3,15}$)[a-zA-Z0-9._]+$";
 	public static final String PASSWORD_REGEX_CHECK = "^(?=.{64}$)[a-zA-Z0-9._]+$";
 	
-	public static boolean performModerationChecks(NetworkHandler handler, String username) {
+	public static boolean performModerationChecks(NetBaseHandler handler, String username) {
 		// Check if either the user name or IP are not white-listed
     	if (MainConfig.instance.useWhiteList && 
-    		!WhitelistConfig.instance.ips.contains(handler.networkAddress.ip) &&
+    		!WhitelistConfig.instance.ips.contains(handler.netManager.getAddress().ip) &&
     		!WhitelistConfig.instance.users.contains(username)) {
     		handler.kick("You are not white-listed!");
     	}
     	
 		String bannedReason = BannedConfig.instance.users.get(username);
-		String bannedReasonIP = BannedConfig.instance.ips.get(handler.networkAddress.ip);
+		String bannedReasonIP = BannedConfig.instance.ips.get(handler.netManager.getAddress().ip);
     	
 		// Check if either the user name or IP are banned
     	if (bannedReason != null) {
@@ -33,7 +33,7 @@ public class NetHandlerUtils {
     	return true;
 	}
 	
-	public static boolean performNameVerification(NetworkHandler handler, String username) {
+	public static boolean performNameVerification(NetBaseHandler handler, String username) {
     	if (!username.matches(USERNAME_REGEX_CHECK)) {
     		handler.kick("Illegal username!\n"
     				+ "Legal usernames must have a length of at least 3 and at most 16\n"
@@ -45,12 +45,12 @@ public class NetHandlerUtils {
     	return true;
 	}
 	
-	public static boolean performProtocolCheck(NetworkHandler handler, byte protocol, String clientVersion) {
+	public static boolean performProtocolCheck(NetBaseHandler handler, byte protocol, String clientVersion) {
 		// Check if the client protocol is not PROTOCOL_VERSION
-    	if (protocol != NetworkHandler.PROTOCOL_VERSION) {
+    	if (protocol != NetBaseHandler.PROTOCOL_VERSION) {
     		handler.kick(String.format("Illegal protocol version!\nMust be %d, but got %d!\n"
     				+ "Are you using a compatible Pinto! version?", 
-    				NetworkHandler.PROTOCOL_VERSION, protocol));
+    				NetBaseHandler.PROTOCOL_VERSION, protocol));
     		return false;
     	}
     	

@@ -5,9 +5,8 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 
 import me.vlod.pinto.Utils;
-import me.vlod.pinto.networking.NetworkHandler;
 
-public class PacketServerID implements Packet {
+public class PacketServerID extends Packet {
     public String serverID;
 
     public PacketServerID() { }
@@ -32,6 +31,12 @@ public class PacketServerID implements Packet {
 	}
 
 	@Override
-	public void handle(NetworkHandler netHandler) {
+	public int getPacketSize() {
+		return 36;
+	}
+	
+	@Override
+	public String getDataAsStr() {
+		return this.serverID;
 	}
 }

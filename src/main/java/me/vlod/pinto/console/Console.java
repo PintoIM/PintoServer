@@ -28,7 +28,7 @@ import javax.swing.text.StyleContext;
 
 import me.vlod.pinto.Delegate;
 import me.vlod.pinto.PintoServer;
-import me.vlod.pinto.networking.NetworkHandler;
+import me.vlod.pinto.networking.NetBaseHandler;
 
 public class Console {
 	private JFrame frame;
@@ -102,6 +102,8 @@ public class Console {
 		
 		JMenu help = new JMenu("Help");
 		help.setMnemonic(KeyEvent.VK_H);
+		JMenu tools = new JMenu("Tools");
+		tools.setMnemonic(KeyEvent.VK_T);
 		
 		JMenuItem helpAbout = new JMenuItem("About");
 		helpAbout.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_A, ActionEvent.ALT_MASK));
@@ -111,12 +113,23 @@ public class Console {
 				JOptionPane.showMessageDialog(null, 
 						String.format("PintoServer: Official server implementation for Pinto!\n"
 								+ "Protocol Version: %d\nApplication Version: %s", 
-								NetworkHandler.PROTOCOL_VERSION, PintoServer.VERSION_STRING),
+								NetBaseHandler.PROTOCOL_VERSION, PintoServer.VERSION_STRING),
 						"Pinto! Server - About", JOptionPane.INFORMATION_MESSAGE | JOptionPane.OK_OPTION);
 			}
 		});
 		
+		JMenuItem toolsClear = new JMenuItem("Clear");
+		toolsClear.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_C, ActionEvent.ALT_MASK));
+		toolsClear.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				Console.this.txtContents.setText(null);
+			}
+		});
+		
+		tools.add(toolsClear);
 		help.add(helpAbout);
+		this.menuBar.add(tools);
 		this.menuBar.add(help);
 		this.frame.setJMenuBar(this.menuBar);
 		

@@ -1,16 +1,16 @@
 package me.vlod.pinto.event;
 
 import me.vlod.hottyevents.Event;
-import me.vlod.pinto.networking.NetworkHandler;
+import me.vlod.pinto.networking.NetServerHandler;
 
 /**
  * Event called when a client disconnects
  */
 public class ClientDisconnectedEvent extends Event {
-	public final NetworkHandler client;
+	public final NetServerHandler client;
 	public final String reason;
 	
-	public ClientDisconnectedEvent(NetworkHandler client, String reason) {
+	public ClientDisconnectedEvent(NetServerHandler client, String reason) {
 		this.client = client;
 		this.reason = reason;
 	}

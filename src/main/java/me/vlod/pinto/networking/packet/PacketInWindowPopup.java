@@ -5,9 +5,8 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 
 import me.vlod.pinto.Utils;
-import me.vlod.pinto.networking.NetworkHandler;
 
-public class PacketInWindowPopup implements Packet {
+public class PacketInWindowPopup extends Packet {
     public String message;
     public boolean isInfo;
     
@@ -41,6 +40,12 @@ public class PacketInWindowPopup implements Packet {
 	}
 
 	@Override
-	public void handle(NetworkHandler netHandler) {
+	public int getPacketSize() {
+		return 256 + 1;
+	}
+	
+	@Override
+	public String getDataAsStr() {
+		return this.message + "," + this.isInfo;
 	}
 }

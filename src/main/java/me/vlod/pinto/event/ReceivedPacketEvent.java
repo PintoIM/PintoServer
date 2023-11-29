@@ -1,7 +1,7 @@
 package me.vlod.pinto.event;
 
 import me.vlod.hottyevents.Event;
-import me.vlod.pinto.networking.NetworkHandler;
+import me.vlod.pinto.networking.NetServerHandler;
 import me.vlod.pinto.networking.packet.Packet;
 
 /**
@@ -9,10 +9,10 @@ import me.vlod.pinto.networking.packet.Packet;
  */
 public class ReceivedPacketEvent extends Event {
 	private boolean cancelled;
-	public final NetworkHandler client;
+	public final NetServerHandler client;
 	public final Packet packet;
 	
-	public ReceivedPacketEvent(NetworkHandler client, Packet packet) {
+	public ReceivedPacketEvent(NetServerHandler client, Packet packet) {
 		this.client = client;
 		this.packet = packet;
 	}

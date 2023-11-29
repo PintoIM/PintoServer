@@ -1,16 +1,16 @@
 package me.vlod.pinto.event;
 
 import me.vlod.hottyevents.Event;
-import me.vlod.pinto.networking.NetworkHandler;
+import me.vlod.pinto.networking.NetServerHandler;
 
 /**
  * Event called when a client connects
  */
 public class ClientConnectedEvent extends Event {
 	private boolean cancelled;
-	public final NetworkHandler client;
+	public final NetServerHandler client;
 	
-	public ClientConnectedEvent(NetworkHandler client) {
+	public ClientConnectedEvent(NetServerHandler client) {
 		this.client = client;
 	}
 	

@@ -1,17 +1,17 @@
 package me.vlod.pinto.event;
 
 import me.vlod.hottyevents.Event;
-import me.vlod.pinto.networking.NetworkHandler;
+import me.vlod.pinto.networking.NetServerHandler;
 import me.vlod.pinto.networking.packet.Packet;
 
 /**
  * Event called after sending a packet (can't be cancelled)
  */
 public class SentPacketEvent extends Event {
-	public final NetworkHandler client;
+	public final NetServerHandler client;
 	public final Packet packet;
 	
-	public SentPacketEvent(NetworkHandler client, Packet packet) {
+	public SentPacketEvent(NetServerHandler client, Packet packet) {
 		this.client = client;
 		this.packet = packet;
 	}

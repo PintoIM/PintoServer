@@ -12,8 +12,6 @@ import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
-import java.net.ServerSocket;
-import java.net.Socket;
 import java.net.URL;
 import java.nio.file.Paths;
 import java.security.KeyPair;
@@ -43,10 +41,9 @@ import me.vlod.pinto.consolehandler.ConsoleCaller;
 import me.vlod.pinto.consolehandler.ConsoleHandler;
 import me.vlod.pinto.logger.LogLevel;
 import me.vlod.pinto.logger.Logger;
-import me.vlod.pinto.networking.NetHandlerUtils;
+import me.vlod.pinto.networking.NetServerHandler;
 import me.vlod.pinto.networking.NetworkAddress;
-import me.vlod.pinto.networking.NetworkClient;
-import me.vlod.pinto.networking.NetworkHandler;
+import me.vlod.pinto.networking.NetworkServer;
 import me.vlod.pinto.networking.packet.Packet;
 import me.vlod.pinto.networking.packet.PacketMessage;
 import me.vlod.pinto.plugin.PluginManager;
@@ -54,7 +51,7 @@ import me.vlod.sql.SQLInterface;
 import me.vlod.sql.SQLiteInterface;
 
 public class PintoServer implements Runnable {
-	public static final String VERSION_STRING = "b1.1";
+	public static final String VERSION_STRING = "b1.2";
 	public static final String ASCII_LOGO = ""
 			+ " _____ _       _        _____                          \n"
 			+ "|  __ (_)     | |      / ____|                         \n"
@@ -72,8 +69,8 @@ public class PintoServer implements Runnable {
 	public ConsoleCaller consoleCaller = new ConsoleCaller(null, null);
 	public ConsoleHandler consoleHandler;
 	public SQLInterface database;
-	public ServerSocket serverSocket;
-	public final List<NetworkHandler> clients = Collections.synchronizedList(new ArrayList<NetworkHandler>());
+	public NetworkServer networkServer;
+	public final List<NetServerHandler> clients = Collections.synchronizedList(new ArrayList<NetServerHandler>());
 	public PluginManager pluginManager;
 	public final EventSender<Event> eventSender = new EventSender<Event>();
 	public RSAPublicKey rsaPublicKey;
@@ -167,8 +164,6 @@ public class PintoServer implements Runnable {
 			logger.info("Loading database...");
 			this.database = new SQLiteInterface(MainConfig.instance.databaseFile);
 			
-			System.out.println(Utils.getPintoGroupID());
-			
 			if (!this.database.doesTableExist(USERS_TABLE_NAME)) {
 				LinkedHashMap<String, String> columns = new LinkedHashMap<String, String>();
 				columns.put("name", "varchar(16)");
@@ -234,10 +229,11 @@ public class PintoServer implements Runnable {
 			
 			// Set runnable to true, which will allow the loops to work
 			this.running = true;
-			// Create the server socket, this might throw an exception, 
+			// Create the network server, this might throw an exception, 
 			// usually when it can't bind to the port
-			this.serverSocket = new ServerSocket(MainConfig.instance.listenPort, 50, 
-					InetAddress.getByName(MainConfig.instance.listenIP));
+			this.networkServer = new NetworkServer(this, 
+					InetAddress.getByName(MainConfig.instance.listenIP), 
+					MainConfig.instance.listenPort);
 			// Create the CLI scanner only when the CLI is present or when it is forced
 			if (System.console() != null || System.getProperty("pinto.forceConsole") != null) {
 				this.cliScanner = new Scanner(System.in);
@@ -247,7 +243,7 @@ public class PintoServer implements Runnable {
 			
 			// Initialize the HTTP server
 			this.httpServer = new PintoHttpServer();
-			new Thread(this.httpServer, "Http-Server-Thread").start();
+			new Thread(this.httpServer, "Http-Server").start();
 			while (!this.httpServer.isStarted) Thread.sleep(1);
 			if (this.httpServer.startException != null)throw this.httpServer.startException;
 			
@@ -282,44 +278,17 @@ public class PintoServer implements Runnable {
 			}
 		}
 		
-		// Network accept thread
-		new Thread("Network-Accept-Thread") {
-			@Override
-			public void run() {
-				while (running) {
-					try {
-						Socket socket = serverSocket.accept();
-						NetworkClient client = new NetworkClient(rsaPublicKey, rsaPrivateKey, socket);
-						if (!client.isConnected) continue;
-						clients.add(new NetworkHandler(PintoServer.instance, client));
-						
-						// Make the loop sleep to prevent high CPU usage
-			    		try {
-							Thread.sleep(1);
-						} catch (Exception ex) {
-							PintoServer.logger.throwable(ex);
-						}
-					} catch (Exception ex) {
-						if (running) {
-							logger.throwable(ex);
-						}
-					}
-				}
-			}
-		}.start();
-		
 		// Tick thread
-		new Thread("Tick-Thread") {
+		new Thread("Network-Updater") {
 			@Override
 			public void run() {
 				long lastTime = 0;
 				
 				while (running) {
-					if (System.currentTimeMillis() - lastTime > 1000) {
+					// TODO: Change this
+					if (System.currentTimeMillis() - lastTime > 100) {
 						try {
-							for (NetworkHandler handler : clients.toArray(new NetworkHandler[0])) {
-								handler.onTick();
-							}
+							PintoServer.this.networkServer.update();
 						} catch (Exception ex) {
 							if (running) {
 								logger.throwable(ex);
@@ -339,7 +308,7 @@ public class PintoServer implements Runnable {
 		}.start();
 		
 		// Heart beat thread
-		new Thread("Heartbeat-Thread") {
+		new Thread("Heartbeat") {
 			@Override
 			public void run() {
 				long lastTime = 0;
@@ -401,10 +370,10 @@ public class PintoServer implements Runnable {
 			this.cliScanner.close();
 		}
 		
-		// Shutdown the server socket
-		if (this.serverSocket != null) {
+		// Shutdown the network server
+		if (this.networkServer != null) {
 			try {
-				this.serverSocket.close();
+				this.networkServer.stop();
 			} catch (Exception ex) {
 				// Ignore any close exceptions, as we are shutting down
 			}
@@ -472,9 +441,8 @@ public class PintoServer implements Runnable {
 			OutputStream outputStream = httpConnection.getOutputStream();
 			
 			int onlineClients = 0;
-			for (NetworkHandler client : this.clients) {
-				if (client.userName != null && NetHandlerUtils
-						.getToOthersStatus(client.databaseEntry.status) != UserStatus.OFFLINE) {
+			for (NetServerHandler client : this.clients) {
+				if (client.userName != null && client.getStatus() != UserStatus.OFFLINE) {
 					onlineClients++;
 				}
 			}
@@ -537,15 +505,15 @@ public class PintoServer implements Runnable {
 			BannedConfig.instance.ips.put(target, reason);
 			PintoServer.logger.log("Moderation", "Banned the IP \"" + target + "\" for \"" + reason + "\"");
 			
-			NetworkHandler[] handlers = this.getHandlersByAddress(target);
-			for (NetworkHandler handler : handlers) {
+			NetServerHandler[] handlers = this.getHandlersByAddress(target);
+			for (NetServerHandler handler : handlers) {
 				handler.kick("You have been IP banned from this chat!\nReason: " + reason);
 			}
 		} else {
 			BannedConfig.instance.users.put(target, reason);
 			PintoServer.logger.log("Moderation", "Banned the user \"" + target + "\" for \"" + reason + "\"");
 			
-			NetworkHandler handler = this.getHandlerByName(target);
+			NetServerHandler handler = this.getHandlerByName(target);
 			if (handler != null) {
 				handler.kick("You have been banned from this chat!\nReason: " + reason);
 			}
@@ -565,8 +533,8 @@ public class PintoServer implements Runnable {
 		this.saveConfig();
 	}	
 
-	public NetworkHandler getHandlerByName(String name) {
-		for (NetworkHandler handler : this.clients.toArray(new NetworkHandler[0])) {
+	public NetServerHandler getHandlerByName(String name) {
+		for (NetServerHandler handler : this.clients.toArray(new NetServerHandler[0])) {
 			if (handler.userName != null && handler.userName.equals(name)) {
 				return handler;
 			}
@@ -575,24 +543,24 @@ public class PintoServer implements Runnable {
 		return null;
 	}
 	
-	public NetworkHandler[] getHandlersByAddress(String address) {
-		ArrayList<NetworkHandler> handlers = new ArrayList<NetworkHandler>();
+	public NetServerHandler[] getHandlersByAddress(String address) {
+		ArrayList<NetServerHandler> handlers = new ArrayList<NetServerHandler>();
 		
-		for (NetworkHandler handler : this.clients.toArray(new NetworkHandler[0])) {
+		for (NetServerHandler handler : this.clients.toArray(new NetServerHandler[0])) {
 			// Using String.equals instead of == to compensate for any weird cases
-			if (handler.networkAddress.ip.equals(address)) {
+			if (handler.netManager.getAddress().ip.equals(address)) {
 				handlers.add(handler);
 			}
 		}
 
-		return handlers.toArray(new NetworkHandler[0]);
+		return handlers.toArray(new NetServerHandler[0]);
 	}
 	
-	public NetworkHandler getHandlerByAddress(NetworkAddress address) {
-		for (NetworkHandler handler : this.clients.toArray(new NetworkHandler[0])) {
+	public NetServerHandler getHandlerByAddress(NetworkAddress address) {
+		for (NetServerHandler handler : this.clients.toArray(new NetServerHandler[0])) {
 			// Using String.equals instead of == to compensate for any weird cases
-			if (handler.networkAddress.ip.equals(address.ip) && 
-				handler.networkAddress.port == address.port) {
+			if (handler.netManager.getAddress().ip.equals(address.ip) && 
+				handler.netManager.getAddress().port == address.port) {
 				return handler;
 			}
 		}
@@ -602,16 +570,16 @@ public class PintoServer implements Runnable {
 
 	public void sendGlobalPacket(Packet packet, NetworkAddress... exclusionList) {
 		List<NetworkAddress> exclusionListAsList = Arrays.asList(exclusionList);
-		for (NetworkHandler handler : this.clients.toArray(new NetworkHandler[0])) {
-			if (exclusionListAsList.contains(handler.networkAddress)) continue;
+		for (NetServerHandler handler : this.clients.toArray(new NetServerHandler[0])) {
+			if (exclusionListAsList.contains(handler.netManager.getAddress())) continue;
 			handler.sendPacket(packet);
 		}
 	}
 
 	public void disconnectAllClients(String reason, NetworkAddress... exclusionList) {
 		List<NetworkAddress> exclusionListAsList = Arrays.asList(exclusionList);
-		for (NetworkHandler handler : this.clients.toArray(new NetworkHandler[0])) {
-			if (exclusionListAsList.contains(handler.networkAddress)) continue;
+		for (NetServerHandler handler : this.clients.toArray(new NetServerHandler[0])) {
+			if (exclusionListAsList.contains(handler.netManager.getAddress())) continue;
 			handler.kick(reason);
 		}
 	}
@@ -621,7 +589,7 @@ public class PintoServer implements Runnable {
 		groupDatabaseEntry.load();
 		
 		for (String member : groupDatabaseEntry.members) {
-			NetworkHandler netHandler = this.getHandlerByName(member);
+			NetServerHandler netHandler = this.getHandlerByName(member);
 			
 			if (netHandler == null || netHandler.getStatus() == UserStatus.OFFLINE) {
 				continue;
@@ -655,6 +623,6 @@ public class PintoServer implements Runnable {
 			pintoServer.console.show();
 		}
 
-		(new Thread(PintoServer.instance = pintoServer, "Pinto-Main-Thread")).start();
+		(new Thread(PintoServer.instance = pintoServer, "Main")).start();
 	}
 }

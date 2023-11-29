@@ -4,9 +4,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
-import me.vlod.pinto.networking.NetworkHandler;
-
-public class PacketKeepAlive implements Packet {
+public class PacketKeepAlive extends Packet {
 	@Override
 	public void read(DataInputStream stream) throws IOException {
 	}
@@ -21,7 +19,7 @@ public class PacketKeepAlive implements Packet {
 	}
 
 	@Override
-	public void handle(NetworkHandler netHandler) {
-		netHandler.handleKeepAlivePacket();
+	public int getPacketSize() {
+		return 0;
 	}
 }

@@ -4,7 +4,7 @@ import me.vlod.pinto.PintoServer;
 import me.vlod.pinto.configuration.MainConfig;
 import me.vlod.pinto.consolehandler.ConsoleCaller;
 import me.vlod.pinto.consolehandler.ConsoleCommand;
-import me.vlod.pinto.networking.NetworkHandler;
+import me.vlod.pinto.networking.NetServerHandler;
 
 public class ListUsers implements ConsoleCommand {
 	@Override
@@ -37,8 +37,8 @@ public class ListUsers implements ConsoleCommand {
 		PintoServer.logger.info("There are %d clients out of the max of %d connected%s", 
 				server.clients.size(), MainConfig.instance.maxUsers, server.clients.size() > 0 ? ":" : "");
 		
-		for (NetworkHandler client : server.clients.toArray(new NetworkHandler[0])) {
-			PintoServer.logger.info("- %s (%s)", client.networkAddress,
+		for (NetServerHandler client : server.clients.toArray(new NetServerHandler[0])) {
+			PintoServer.logger.info("- %s (%s)", client.netManager.getAddress(),
 					client.userName != null ? client.userName : "** UNAUTHENTICATED **");
 		}
 	}

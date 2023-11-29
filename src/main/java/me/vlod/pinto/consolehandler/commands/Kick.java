@@ -3,7 +3,7 @@ package me.vlod.pinto.consolehandler.commands;
 import me.vlod.pinto.PintoServer;
 import me.vlod.pinto.consolehandler.ConsoleCaller;
 import me.vlod.pinto.consolehandler.ConsoleCommand;
-import me.vlod.pinto.networking.NetworkHandler;
+import me.vlod.pinto.networking.NetServerHandler;
 
 public class Kick implements ConsoleCommand {
 	@Override
@@ -36,7 +36,7 @@ public class Kick implements ConsoleCommand {
 		String target = args[0];
 		String reason = args[1];
 		
-		NetworkHandler handler = server.getHandlerByName(target);
+		NetServerHandler handler = server.getHandlerByName(target);
 		if (handler != null) {
 			handler.kick("You have been kicked!\nReason: " + reason);
 			caller.sendMessage("Kicked the user " + target + "!");

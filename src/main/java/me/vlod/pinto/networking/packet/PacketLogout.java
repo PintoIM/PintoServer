@@ -5,9 +5,8 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 
 import me.vlod.pinto.Utils;
-import me.vlod.pinto.networking.NetworkHandler;
 
-public class PacketLogout implements Packet {
+public class PacketLogout extends Packet {
     public String reason;
     
     public PacketLogout() { }
@@ -32,6 +31,12 @@ public class PacketLogout implements Packet {
 	}
 
 	@Override
-	public void handle(NetworkHandler netHandler) {
+	public int getPacketSize() {
+		return 256;
+	}
+	
+	@Override
+	public String getDataAsStr() {
+		return this.reason;
 	}
 }

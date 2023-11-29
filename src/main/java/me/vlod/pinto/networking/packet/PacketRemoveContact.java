@@ -5,9 +5,9 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 
 import me.vlod.pinto.Utils;
-import me.vlod.pinto.networking.NetworkHandler;
+import me.vlod.pinto.networking.NetServerHandler;
 
-public class PacketRemoveContact implements Packet {
+public class PacketRemoveContact extends Packet {
     public String contactName;
 
     public PacketRemoveContact() { }
@@ -18,12 +18,12 @@ public class PacketRemoveContact implements Packet {
     
 	@Override
 	public void read(DataInputStream stream) throws IOException {
-		this.contactName = Utils.readPintoStringFromStream(stream, NetworkHandler.USERNAME_MAX);
+		this.contactName = Utils.readPintoStringFromStream(stream, NetServerHandler.USERNAME_MAX);
 	}
 	
 	@Override
 	public void write(DataOutputStream stream) throws IOException {
-		Utils.writePintoStringToStream(stream, this.contactName, NetworkHandler.USERNAME_MAX);
+		Utils.writePintoStringToStream(stream, this.contactName, NetServerHandler.USERNAME_MAX);
 	}
 
 	@Override
@@ -32,7 +32,12 @@ public class PacketRemoveContact implements Packet {
 	}
 
 	@Override
-	public void handle(NetworkHandler netHandler) {
-		netHandler.handleRemoveContactPacket(this);
+	public int getPacketSize() {
+		return NetServerHandler.USERNAME_MAX;
+	}
+	
+	@Override
+	public String getDataAsStr() {
+		return this.contactName;
 	}
 }

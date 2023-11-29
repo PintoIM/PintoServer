@@ -7,7 +7,7 @@ import me.vlod.pinto.UserDatabaseEntry;
 import me.vlod.pinto.UserStatus;
 import me.vlod.pinto.consolehandler.ConsoleCaller;
 import me.vlod.pinto.consolehandler.ConsoleCommand;
-import me.vlod.pinto.networking.NetworkHandler;
+import me.vlod.pinto.networking.NetServerHandler;
 import me.vlod.pinto.networking.packet.PacketAddContact;
 
 public class Add implements ConsoleCommand {
@@ -42,7 +42,7 @@ public class Add implements ConsoleCommand {
 		String user = args[0];
 		GroupDatabaseEntry groupDatabaseEntry = new GroupDatabaseEntry(server, groupID);
 		groupDatabaseEntry.load();
-		NetworkHandler userClient = server.getHandlerByName(user);
+		NetServerHandler userClient = server.getHandlerByName(user);
 		
 		if (!caller.client.databaseEntry.contacts.contains(user)) {
 			caller.sendMessage(Coloring.translateAlternativeColoringCodes(

@@ -6,7 +6,7 @@ import me.vlod.pinto.PintoServer;
 import me.vlod.pinto.UserDatabaseEntry;
 import me.vlod.pinto.consolehandler.ConsoleCaller;
 import me.vlod.pinto.consolehandler.ConsoleCommand;
-import me.vlod.pinto.networking.NetworkHandler;
+import me.vlod.pinto.networking.NetServerHandler;
 import me.vlod.pinto.networking.packet.PacketRemoveContact;
 
 public class Remove implements ConsoleCommand {
@@ -41,7 +41,7 @@ public class Remove implements ConsoleCommand {
 		String user = args[0];
 		GroupDatabaseEntry groupDatabaseEntry = new GroupDatabaseEntry(server, groupID);
 		groupDatabaseEntry.load();
-		NetworkHandler userClient = server.getHandlerByName(user);
+		NetServerHandler userClient = server.getHandlerByName(user);
 		
 		if (!groupDatabaseEntry.members.contains(user)) {
 			caller.sendMessage(Coloring.translateAlternativeColoringCodes(

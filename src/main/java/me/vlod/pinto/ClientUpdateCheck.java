@@ -22,7 +22,6 @@ public class ClientUpdateCheck {
 			httpConnection.connect();
 			
 			InputStream inputStream = httpConnection.getInputStream();
-			
             BufferedReader bufferedReader = new BufferedReader(
             		new InputStreamReader(inputStream));
             StringBuilder stringBuilder = new StringBuilder();

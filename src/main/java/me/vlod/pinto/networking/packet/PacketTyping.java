@@ -5,9 +5,9 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 
 import me.vlod.pinto.Utils;
-import me.vlod.pinto.networking.NetworkHandler;
+import me.vlod.pinto.networking.NetServerHandler;
 
-public class PacketTyping implements Packet {
+public class PacketTyping extends Packet {
     public String contactName;
     public boolean state;
 
@@ -20,13 +20,13 @@ public class PacketTyping implements Packet {
     
 	@Override
 	public void read(DataInputStream stream) throws IOException {
-		this.contactName = Utils.readPintoStringFromStream(stream, NetworkHandler.USERNAME_MAX);
+		this.contactName = Utils.readPintoStringFromStream(stream, NetServerHandler.USERNAME_MAX);
 		this.state = stream.read() == 0x01;
 	}
 	
 	@Override
 	public void write(DataOutputStream stream) throws IOException {
-		Utils.writePintoStringToStream(stream, this.contactName, NetworkHandler.USERNAME_MAX);
+		Utils.writePintoStringToStream(stream, this.contactName, NetServerHandler.USERNAME_MAX);
 		stream.write(this.state ? 0x01 : 0x00);
 	}
 
@@ -36,7 +36,12 @@ public class PacketTyping implements Packet {
 	}
 
 	@Override
-	public void handle(NetworkHandler netHandler) {
-		netHandler.handleTypingPacket(this);
+	public int getPacketSize() {
+		return NetServerHandler.USERNAME_MAX + 1;
+	}
+	
+	@Override
+	public String getDataAsStr() {
+		return this.contactName + "," + this.state;
 	}
 }

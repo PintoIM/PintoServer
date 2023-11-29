@@ -4,9 +4,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
-import me.vlod.pinto.networking.NetworkHandler;
-
-public class PacketClearContacts implements Packet {
+public class PacketClearContacts extends Packet {
 	@Override
 	public void read(DataInputStream stream) throws IOException {
 	}
@@ -21,6 +19,7 @@ public class PacketClearContacts implements Packet {
 	}
 
 	@Override
-	public void handle(NetworkHandler netHandler) {
+	public int getPacketSize() {
+		return 0;
 	}
 }

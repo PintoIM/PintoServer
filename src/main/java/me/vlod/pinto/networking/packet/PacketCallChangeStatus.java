@@ -6,9 +6,8 @@ import java.io.IOException;
 
 import me.vlod.pinto.CallStatus;
 import me.vlod.pinto.Utils;
-import me.vlod.pinto.networking.NetworkHandler;
 
-public class PacketCallChangeStatus implements Packet {
+public class PacketCallChangeStatus extends Packet {
 	public CallStatus callStatus;
 	public String details;
 	
@@ -37,7 +36,12 @@ public class PacketCallChangeStatus implements Packet {
 	}
 
 	@Override
-	public void handle(NetworkHandler netHandler) {
-		netHandler.handleCallChangeStatusPacket(this);
+	public int getPacketSize() {
+		return 4 + 64;
+	}
+	
+	@Override
+	public String getDataAsStr() {
+		return this.callStatus + "," + this.details;
 	}
 }
