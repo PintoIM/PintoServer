@@ -1,12 +1,14 @@
 package me.vlod.pinto.networking;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
 import me.vlod.pinto.ClientUpdateCheck;
 import me.vlod.pinto.PintoServer;
 import me.vlod.pinto.UserDatabaseEntry;
 import me.vlod.pinto.UserStatus;
+import me.vlod.pinto.Utils;
 import me.vlod.pinto.configuration.MainConfig;
 import me.vlod.pinto.consolehandler.ConsoleHandler;
 import me.vlod.pinto.networking.packet.Packet;
@@ -182,6 +184,10 @@ public class NetServerHandler extends NetBaseHandler {
 			Method handler = this.packetsHandler.getClass().getMethod(
 					String.format("handle%sPacket", packetName), packet.getClass());
 			handler.invoke(this.packetsHandler, packet);
+		} catch (InvocationTargetException ex) {
+			logger.error("The packet handler for %s has encountered an error: %s", 
+					this, Utils.getThrowableStackTraceAsStr(ex.getCause()));
+			this.netManager.shutdown("Internal Server Error");
 		} catch (Exception ex) {
 			this.onBadPacket();
 		}
