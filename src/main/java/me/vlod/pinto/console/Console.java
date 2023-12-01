@@ -127,7 +127,17 @@ public class Console {
 			}
 		});
 		
+		JMenuItem toolsKill = new JMenuItem("Kill");
+		toolsKill.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_K, ActionEvent.ALT_MASK));
+		toolsKill.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				System.exit(1);
+			}
+		});
+		
 		tools.add(toolsClear);
+		tools.add(toolsKill);
 		help.add(helpAbout);
 		this.menuBar.add(tools);
 		this.menuBar.add(help);

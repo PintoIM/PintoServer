@@ -35,10 +35,7 @@ public class NetUtils {
 	
 	public static boolean performNameVerification(NetBaseHandler handler, String username) {
     	if (!username.matches(USERNAME_REGEX_CHECK)) {
-    		handler.kick("Illegal username!\n"
-    				+ "Legal usernames must have a length of at least 3 and at most 16\n"
-    				+ "Legal usernames may only contain alphanumeric characters,"
-    				+ " underscores and dots");
+    		handler.kick("Illegal username!");
     		return false;
     	}
     	
