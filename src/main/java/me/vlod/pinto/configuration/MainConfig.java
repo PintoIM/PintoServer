@@ -19,6 +19,5 @@ public class MainConfig implements Config {
 	@SuppressWarnings("serial")
 	public HashMap<String, String> filesToServeOnHTTP = new HashMap<String, String>() {{
 		put("welcome.html", "text/html");
-		put("rules.html", "text/html");
 	}};
 }
