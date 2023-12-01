@@ -20,7 +20,6 @@ import me.vlod.pinto.networking.packet.PacketKeepAlive;
 import me.vlod.pinto.networking.packet.PacketLogin;
 import me.vlod.pinto.networking.packet.PacketPopup;
 import me.vlod.pinto.networking.packet.PacketServerID;
-import me.vlod.pinto.networking.packet.PacketSetOption;
 import me.vlod.pinto.networking.packet.PacketStatus;
 
 public class NetServerHandler extends NetBaseHandler {
@@ -129,11 +128,6 @@ public class NetServerHandler extends NetBaseHandler {
     				+ " upgrade to the latest version to get the most recent features and bug fixes!"));
         	PintoServer.logger.warn("%s has an older client than the latest!", 
         			this.userName, this.clientVersion);
-    	}
-    	
-    	// Experimental features
-    	if (MainConfig.instance.enableExperimentsToUsers.contains(this.userName)) {
-    		this.sendPacket(new PacketSetOption("exp_calls", "1"));
     	}
     }
     

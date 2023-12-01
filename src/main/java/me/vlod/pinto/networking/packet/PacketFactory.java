@@ -21,7 +21,6 @@ public class PacketFactory {
     	packetMap.put(9, PacketContactRequest.class);
     	packetMap.put(10, PacketClearContacts.class);
     	packetMap.put(11, PacketCallChangeStatus.class);
-    	packetMap.put(12, PacketSetOption.class);
     	packetMap.put(17, PacketServerID.class);
     	packetMap.put(18, PacketTyping.class);
     	packetMap.put(255, PacketKeepAlive.class);

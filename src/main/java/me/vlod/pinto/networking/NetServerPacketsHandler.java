@@ -1,13 +1,11 @@
 package me.vlod.pinto.networking;
 
-import me.vlod.pinto.CallStatus;
 import me.vlod.pinto.Coloring;
 import me.vlod.pinto.GroupDatabaseEntry;
 import me.vlod.pinto.PintoServer;
 import me.vlod.pinto.UserDatabaseEntry;
 import me.vlod.pinto.UserStatus;
 import me.vlod.pinto.Utils;
-import me.vlod.pinto.configuration.MainConfig;
 import me.vlod.pinto.consolehandler.ConsoleCaller;
 import me.vlod.pinto.networking.packet.PacketAddContact;
 import me.vlod.pinto.networking.packet.PacketCallChangeStatus;
@@ -258,6 +256,7 @@ public class NetServerPacketsHandler {
 	}
 	
 	public void handleCallChangeStatusPacket(PacketCallChangeStatus packet) {
+		/*
 		NetServerHandler otherUser = null;
 
 		PintoServer.logger.info("%s changed their call status to %s (%s)", 
@@ -265,12 +264,6 @@ public class NetServerPacketsHandler {
 		
 		switch (packet.callStatus) {
 		case CONNECTING:
-			if (!MainConfig.instance.enableExperimentsToUsers.contains(this.netHandler.userName)) {
-				this.netHandler.sendPacket(new PacketCallChangeStatus(CallStatus.ERROR, 
-						"Feature unavailable"));
-				return;
-			}
-			
 			if (!packet.details.contains("@")) {
 				this.netHandler.kick("Protocol violation!");
 				return;
@@ -339,6 +332,6 @@ public class NetServerPacketsHandler {
 			break;
 		default:
 			break;
-		}
+		}*/
 	}
 }
