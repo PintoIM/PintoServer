@@ -10,7 +10,7 @@ import me.vlod.pinto.consolehandler.ConsoleCaller;
 import me.vlod.pinto.networking.packet.PacketAddContact;
 import me.vlod.pinto.networking.packet.PacketCallChangeStatus;
 import me.vlod.pinto.networking.packet.PacketContactRequest;
-import me.vlod.pinto.networking.packet.PacketInWindowPopup;
+import me.vlod.pinto.networking.packet.PacketNotification;
 import me.vlod.pinto.networking.packet.PacketKeepAlive;
 import me.vlod.pinto.networking.packet.PacketMessage;
 import me.vlod.pinto.networking.packet.PacketRemoveContact;
@@ -74,7 +74,7 @@ public class NetServerPacketsHandler {
     
 	public void handleAddContactPacket(PacketAddContact packet) {
 		if (this.netHandler.databaseEntry.contacts.size() + 1 > 500) {
-			this.netHandler.sendPacket(new PacketInWindowPopup("You have reached the limit of 500 contacts"));
+			this.netHandler.sendPacket(new PacketNotification(0, -1, "", "You have reached the limit of 500 contacts"));
 			return;
 		}
 		
@@ -90,23 +90,23 @@ public class NetServerPacketsHandler {
 			this.netHandler.sendPacket(new PacketAddContact(groupID, UserStatus.ONLINE, "Pinto! Group"));	
 		} else {
 			if (!packet.contactName.matches(NetUtils.USERNAME_REGEX_CHECK)) {
-				this.netHandler.sendPacket(new PacketInWindowPopup("Invalid contact name specified"));
+				this.netHandler.sendPacket(new PacketNotification(0, -1, "", "Invalid contact name specified"));
 				return;
 			}
 			
 			if (packet.contactName.equals(this.netHandler.userName)) {
-				this.netHandler.sendPacket(new PacketInWindowPopup("You may not add yourself to your contact list"));
+				this.netHandler.sendPacket(new PacketNotification(0, -1, "", "You may not add yourself to your contact list"));
 				return;
 			}
 			
 			if (this.netHandler.databaseEntry.contacts.contains(packet.contactName)) {
-				this.netHandler.sendPacket(new PacketInWindowPopup(String.format(
-						"%s is already on your contact list", packet.contactName), true));
+				this.netHandler.sendPacket(new PacketNotification(1, -1, "", String.format(
+						"%s is already on your contact list", packet.contactName)));
 				return;
 			}
 			
 			if (!UserDatabaseEntry.isRegistered(this.instance, packet.contactName)) {
-				this.netHandler.sendPacket(new PacketInWindowPopup(String.format(
+				this.netHandler.sendPacket(new PacketNotification(0, -1, "", String.format(
 						"%s is not a registered user", packet.contactName)));
 				return;
 			}
@@ -115,14 +115,14 @@ public class NetServerPacketsHandler {
 			userDatabaseEntry.load();
 			
 			if (userDatabaseEntry.contacts.size() + 1 > 500) {
-				this.netHandler.sendPacket(new PacketInWindowPopup(
+				this.netHandler.sendPacket(new PacketNotification(0, -1, "", 
 						String.format("%s has reached the 500 contacts limit", packet.contactName)));
 				return;
 			}
 			
 			if (userDatabaseEntry.contactRequests.contains(this.netHandler.userName)) {
-				this.netHandler.sendPacket(new PacketInWindowPopup(
-						String.format("You have already sent %s a contact request", packet.contactName), true));
+				this.netHandler.sendPacket(new PacketNotification(1, -1, "",  
+						String.format("You have already sent %s a contact request", packet.contactName)));
 				return;
 			}
 			
@@ -135,8 +135,8 @@ public class NetServerPacketsHandler {
 				netHandler.sendPacket(new PacketContactRequest(this.netHandler.userName));
 			}
 
-			this.netHandler.sendPacket(new PacketInWindowPopup(String.format(
-					"%s has been sent a request to be added on your contact list", packet.contactName), true));
+			this.netHandler.sendPacket(new PacketNotification(1, -1, null, String.format( 
+					"%s has been sent a request to be added on your contact list", packet.contactName)));
 		}
 	}
     
@@ -210,8 +210,8 @@ public class NetServerPacketsHandler {
 					requesterNetHandler == null ? UserStatus.OFFLINE : requesterNetHandler.getStatus(), 
 					 requesterNetHandler == null ? "" : 
 						 requesterNetHandler.isOnline() ? requesterNetHandler.motd : ""));	
-			this.netHandler.sendPacket(new PacketInWindowPopup(
-					String.format("You are now contacts with %s", requester), true));
+			this.netHandler.sendPacket(new PacketNotification(1, -1, null, 
+					String.format("You are now contacts with %s", requester)));
 			
 			requesterNotification = String.format("%s has accepted your request", this.netHandler.userName, true);
 		} else {
@@ -225,7 +225,7 @@ public class NetServerPacketsHandler {
 						this.netHandler.isOnline() ? this.netHandler.motd : ""));
 			}
 			
-			requesterNetHandler.sendPacket(new PacketInWindowPopup(requesterNotification, true));
+			requesterNetHandler.sendPacket(new PacketNotification(1, -1, null, requesterNotification));
 		}
 	}
 	

@@ -15,11 +15,10 @@ import me.vlod.pinto.networking.packet.Packet;
 import me.vlod.pinto.networking.packet.PacketAddContact;
 import me.vlod.pinto.networking.packet.PacketClearContacts;
 import me.vlod.pinto.networking.packet.PacketContactRequest;
-import me.vlod.pinto.networking.packet.PacketInWindowPopup;
 import me.vlod.pinto.networking.packet.PacketKeepAlive;
 import me.vlod.pinto.networking.packet.PacketLogin;
-import me.vlod.pinto.networking.packet.PacketPopup;
-import me.vlod.pinto.networking.packet.PacketServerID;
+import me.vlod.pinto.networking.packet.PacketNotification;
+import me.vlod.pinto.networking.packet.PacketServerInfo;
 import me.vlod.pinto.networking.packet.PacketStatus;
 
 public class NetServerHandler extends NetBaseHandler {
@@ -113,7 +112,7 @@ public class NetServerHandler extends NetBaseHandler {
     	this.consoleHandler = new ConsoleHandler(this.instance, false);
     	
     	this.sendPacket(new PacketLogin(NetBaseHandler.PROTOCOL_VERSION, "", ""));
-    	this.sendPacket(new PacketServerID(MainConfig.instance.serverID));
+    	this.sendPacket(new PacketServerInfo(MainConfig.instance.serverID, PintoServer.SOFTWARE_INFO));
     	this.synchronize();
 
     	this.instance.sendHeartbeat();
@@ -122,9 +121,9 @@ public class NetServerHandler extends NetBaseHandler {
     	
     	if (!MainConfig.instance.ignoreClientVersion &&
     		!ClientUpdateCheck.isLatest(this.clientVersion)) {
-    		this.sendPacket(new PacketInWindowPopup("Your client version is not the latest,"
-    				+ " upgrade to the latest version to get the most recent features and bug fixes!", true));
-    		this.sendPacket(new PacketPopup("Client outdated", "Your client version is not the latest,"
+    		this.sendPacket(new PacketNotification(1, 0, "", "Your client version is not the latest,"
+    				+ " upgrade to the latest version to get the most recent features and bug fixes!"));
+    		this.sendPacket(new PacketNotification(2, 0, "Client outdated", "Your client version is not the latest,"
     				+ " upgrade to the latest version to get the most recent features and bug fixes!"));
         	PintoServer.logger.warn("%s has an older client than the latest!", 
         			this.userName, this.clientVersion);

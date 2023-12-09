@@ -52,6 +52,7 @@ import me.vlod.sql.SQLiteInterface;
 
 public class PintoServer implements Runnable {
 	public static final String VERSION_STRING = "b1.2";
+	public static final String SOFTWARE_INFO = "PintoServer/" + VERSION_STRING;
 	public static final String ASCII_LOGO = ""
 			+ " _____ _       _        _____                          \n"
 			+ "|  __ (_)     | |      / ____|                         \n"
@@ -75,7 +76,6 @@ public class PintoServer implements Runnable {
 	public final EventSender<Event> eventSender = new EventSender<Event>();
 	public RSAPublicKey rsaPublicKey;
 	public RSAPrivateKey rsaPrivateKey;
-	public PintoHttpServer httpServer;
 	
 	static {
 		FileOutputStream runtimeLogFileStream = null; 
@@ -240,13 +240,7 @@ public class PintoServer implements Runnable {
 			}
 			// Create the console handler that will handle console commands
 			this.consoleHandler = new ConsoleHandler(this, true);
-			
-			// Initialize the HTTP server
-			this.httpServer = new PintoHttpServer();
-			new Thread(this.httpServer, "Http-Server").start();
-			while (!this.httpServer.isStarted) Thread.sleep(1);
-			if (this.httpServer.startException != null)throw this.httpServer.startException;
-			
+
 			// Load the plugins
 			logger.info("Loading plugins...");
 			this.pluginManager = new PluginManager();
