@@ -135,7 +135,7 @@ public class NetServerPacketsHandler {
 				netHandler.sendPacket(new PacketContactRequest(this.netHandler.userName));
 			}
 
-			this.netHandler.sendPacket(new PacketNotification(1, -1, null, String.format( 
+			this.netHandler.sendPacket(new PacketNotification(1, -1, "", String.format( 
 					"%s has been sent a request to be added on your contact list", packet.contactName)));
 		}
 	}
@@ -210,7 +210,7 @@ public class NetServerPacketsHandler {
 					requesterNetHandler == null ? UserStatus.OFFLINE : requesterNetHandler.getStatus(), 
 					 requesterNetHandler == null ? "" : 
 						 requesterNetHandler.isOnline() ? requesterNetHandler.motd : ""));	
-			this.netHandler.sendPacket(new PacketNotification(1, -1, null, 
+			this.netHandler.sendPacket(new PacketNotification(1, -1, "", 
 					String.format("You are now contacts with %s", requester)));
 			
 			requesterNotification = String.format("%s has accepted your request", this.netHandler.userName, true);
@@ -225,7 +225,7 @@ public class NetServerPacketsHandler {
 						this.netHandler.isOnline() ? this.netHandler.motd : ""));
 			}
 			
-			requesterNetHandler.sendPacket(new PacketNotification(1, -1, null, requesterNotification));
+			requesterNetHandler.sendPacket(new PacketNotification(1, -1, "", requesterNotification));
 		}
 	}
 	

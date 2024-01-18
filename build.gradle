@@ -6,19 +6,10 @@ plugins {
 group "me.vlod"
 version "b1.2"
 
-repositories {
-    mavenCentral()
-    gradlePluginPortal()
-    maven { url 'https://jitpack.io' }
-}
-
-dependencies {
-	implementation "commons-io:commons-io:2.11.0"
-	implementation "org.apache.commons:commons-lang3:3.12.0"
-	implementation "org.json:json:20220320"
-	implementation "org.yaml:snakeyaml:1.33"
-	implementation "org.xerial:sqlite-jdbc:3.40.1.0"
-	implementation 'com.github.vlOd2:HottyEvents:main-SNAPSHOT'
+java {
+    sourceCompatibility JavaVersion.VERSION_1_8
+    targetCompatibility JavaVersion.VERSION_1_8
+    withSourcesJar()
 }
 
 jar {
@@ -52,8 +43,17 @@ artifacts {
     archives javadocJar
 }
 
-java {
-    sourceCompatibility JavaVersion.VERSION_1_8
-    targetCompatibility JavaVersion.VERSION_1_8
-    withSourcesJar()
+repositories {
+    mavenCentral()
+    gradlePluginPortal()
+    maven { url 'https://jitpack.io' }
+}
+
+dependencies {
+	implementation "commons-io:commons-io:2.11.0"
+	implementation "org.apache.commons:commons-lang3:3.12.0"
+	implementation "org.json:json:20220320"
+	implementation "org.yaml:snakeyaml:1.33"
+	implementation "org.xerial:sqlite-jdbc:3.40.1.0"
+	implementation 'com.github.vlOd2:HottyEvents:main-SNAPSHOT'
 }
