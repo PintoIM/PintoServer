@@ -20,7 +20,6 @@ import me.vlod.pinto.networking.packet.PacketLogin;
 import me.vlod.pinto.networking.packet.PacketRegister;
 
 public class NetLoginHandler extends NetBaseHandler {
-	public static final int PROTOCOL_VERSION = 8;
 	private PintoServer instance;
 	private int notLoggedInTimer;
 	private boolean doingLogin;
