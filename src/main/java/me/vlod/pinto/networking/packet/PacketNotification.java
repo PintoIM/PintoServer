@@ -15,7 +15,7 @@ public class PacketNotification extends Packet {
     public PacketNotification() { }
     
     /**
-     * Types:
+     * Types:<br>
      * - 0 -> In Window Pop-up (Warning)<br>
      * - 1 -> In Window Pop-up (Information)<br>
      * - 2 -> Pop-up (Notification)<br>

@@ -42,7 +42,6 @@ public class PacketStatus extends Packet {
 
 	@Override
 	public int getPacketSize() {
-		// TODO: Implement this
 		return NetServerHandler.USERNAME_MAX + 4 + 64;
 	}
 	
