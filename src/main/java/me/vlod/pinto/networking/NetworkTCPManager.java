@@ -8,6 +8,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.SocketException;
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
@@ -218,6 +219,12 @@ public class NetworkTCPManager implements NetworkManager {
 			if (this.isTerminating || this.isClosing) {
 				return;
 			}
+			
+			if (ex instanceof SocketException) {
+				this.shutdown("Client disconnect");
+				return;
+			}
+			
 			this.handleNetworkError(ex);
 		}
 	}
