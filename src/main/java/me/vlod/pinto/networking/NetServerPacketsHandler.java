@@ -27,7 +27,7 @@ public class NetServerPacketsHandler {
 	}
 	
 	public void handleMessagePacket(PacketMessage packet) {
-		String msg = packet.message.trim();
+		String msg = packet.payload.trim();
 		boolean receiverIsGroup = NetUtils.isUserGroup(packet.contactName);
 		
 		if (msg.isEmpty()) {

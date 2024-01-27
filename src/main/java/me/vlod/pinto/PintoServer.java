@@ -279,7 +279,6 @@ public class PintoServer implements Runnable {
 				long lastTime = 0;
 				
 				while (running) {
-					// TODO: Change this
 					if (System.currentTimeMillis() - lastTime > 100) {
 						try {
 							PintoServer.this.networkServer.update();
