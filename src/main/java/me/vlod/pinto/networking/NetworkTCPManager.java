@@ -5,6 +5,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.EOFException;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
@@ -194,12 +195,8 @@ public class NetworkTCPManager implements NetworkManager {
 			this.inputStream.read(iv);
 			
 			byte[] encryptedData = new byte[Utils.bytesToInt(encryptedDataSize)];
-			int readAmount = this.inputStream.read(encryptedData);
-			if (readAmount == -1) {
-            	this.shutdown("Client disconnect");
-            	return;
-			}
-			
+			this.inputStream.readFully(encryptedData);
+
 			this.cipherDecryptor.init(Cipher.DECRYPT_MODE, this.secretKey, new IvParameterSpec(iv));
 			byte[] decryptedData = this.cipherDecryptor.doFinal(encryptedData);
 			DataInputStream dataInputStream = 
@@ -220,7 +217,7 @@ public class NetworkTCPManager implements NetworkManager {
 				return;
 			}
 			
-			if (ex instanceof SocketException) {
+			if (ex instanceof SocketException || ex instanceof EOFException) {
 				this.shutdown("Client disconnect");
 				return;
 			}

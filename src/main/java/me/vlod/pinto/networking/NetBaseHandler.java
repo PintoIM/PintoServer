@@ -9,7 +9,7 @@ import me.vlod.pinto.networking.packet.PacketKeepAlive;
 import me.vlod.pinto.networking.packet.PacketLogout;
 
 public class NetBaseHandler {
-	public static final byte PROTOCOL_VERSION = 11;
+	public static final byte PROTOCOL_VERSION = 12;
 	public static final int USERNAME_MAX = 16;
 	public static final int MESSAGE_RATE_LIMIT_TIME = 10;
 	protected Logger logger = PintoServer.logger;

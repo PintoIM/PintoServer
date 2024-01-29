@@ -2,6 +2,7 @@ package me.vlod.pinto.consolehandler;
 
 import me.vlod.pinto.PintoServer;
 import me.vlod.pinto.networking.NetServerHandler;
+import me.vlod.pinto.networking.PMSGMessage;
 import me.vlod.pinto.networking.packet.PacketMessage;
 
 public class ConsoleCaller {
@@ -17,7 +18,7 @@ public class ConsoleCaller {
 	
 	public void sendMessage(String message) {
 		if (this.isClient) {
-			this.client.sendPacket(new PacketMessage(this.clientChat, "", message));
+			this.client.sendPacket(new PacketMessage(this.clientChat, "", new PMSGMessage(message)));
 		} else {
 			PintoServer.logger.info(message);
 		}

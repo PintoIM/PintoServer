@@ -5,7 +5,6 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 
 import me.vlod.pinto.UserStatus;
-import me.vlod.pinto.Utils;
 import me.vlod.pinto.networking.NetServerHandler;
 
 public class PacketAddContact extends Packet {
@@ -23,16 +22,16 @@ public class PacketAddContact extends Packet {
     
 	@Override
 	public void read(DataInputStream stream) throws IOException {
-		this.contactName = Utils.readPintoStringFromStream(stream, NetServerHandler.USERNAME_MAX);
+		this.contactName = Packet.readString(stream, NetServerHandler.USERNAME_MAX);
 		this.status = UserStatus.fromIndex(stream.readInt());
-		this.motd = Utils.readPintoStringFromStream(stream, 64);
+		this.motd = Packet.readString(stream, 64);
 	}
 	
 	@Override
 	public void write(DataOutputStream stream) throws IOException {
-		Utils.writePintoStringToStream(stream, this.contactName, NetServerHandler.USERNAME_MAX);
+		Packet.writeString(stream, this.contactName, NetServerHandler.USERNAME_MAX);
 		stream.writeInt(this.status.getIndex());
-		Utils.writePintoStringToStream(stream, this.motd, 64);
+		Packet.writeString(stream, this.motd, 64);
 	}
 
 	@Override

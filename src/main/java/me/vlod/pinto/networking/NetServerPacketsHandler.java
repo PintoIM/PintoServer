@@ -1,5 +1,7 @@
 package me.vlod.pinto.networking;
 
+import java.nio.charset.StandardCharsets;
+
 import me.vlod.pinto.Coloring;
 import me.vlod.pinto.GroupDatabaseEntry;
 import me.vlod.pinto.PintoServer;
@@ -27,20 +29,14 @@ public class NetServerPacketsHandler {
 	}
 	
 	public void handleMessagePacket(PacketMessage packet) {
-		String msg = packet.payload.trim();
+		PMSGMessage msg = packet.payload;
+		String msgText = msg.headers.get("Content-Type").equals("pinto/text") ? new String(msg.data, StandardCharsets.UTF_16BE) : null;
 		boolean receiverIsGroup = NetUtils.isUserGroup(packet.contactName);
-		
-		if (msg.isEmpty()) {
-			this.netHandler.sendPacket(new PacketMessage(packet.contactName, "",
-					Coloring.translateAlternativeColoringCodes(
-							"&8[&5!&8]&4 You may not send empty messages!")));
-			return;
-		}
-		
+
     	if (!this.netHandler.databaseEntry.contacts.contains(packet.contactName) || this.netHandler.getStatus() == UserStatus.OFFLINE) {
 			this.netHandler.sendPacket(new PacketMessage(packet.contactName, "", 
-					Coloring.translateAlternativeColoringCodes(String.format(
-							"&8[&5!&8]&4 You may not send messages to %s", packet.contactName))));
+					new PMSGMessage(Coloring.translateAlternativeColoringCodes(String.format(
+							"&8[&5!&8]&4 You may not send messages to %s", packet.contactName)))));
     		return;
     	}
     	
@@ -53,17 +49,17 @@ public class NetServerPacketsHandler {
 			NetServerHandler netHandler = this.instance.getHandlerByName(packet.contactName);
 			if (netHandler == null || netHandler.getStatus() == UserStatus.OFFLINE) {
 				this.netHandler.sendPacket(new PacketMessage(packet.contactName, "", 
-						Coloring.translateAlternativeColoringCodes(String.format(
-								"&8[&5!&8]&4 %s is offline and may not receive messages", packet.contactName))));
+						new PMSGMessage(Coloring.translateAlternativeColoringCodes(String.format(
+								"&8[&5!&8]&4 %s is offline and may not receive messages", packet.contactName)))));
 				return;
 			}
 
 			netHandler.sendPacket(new PacketMessage(this.netHandler.userName, this.netHandler.userName, msg));
 			this.netHandler.sendPacket(new PacketMessage(packet.contactName, this.netHandler.userName, msg));
 		} else {
-			if (msg.startsWith("/")) {
-				msg = msg.replaceFirst("\\/", "");
-				this.netHandler.consoleHandler.handleInput(msg, new ConsoleCaller(this.netHandler, packet.contactName));
+			if (msgText != null && msgText.startsWith("/")) {
+				msgText = msgText.replaceFirst("\\/", "");
+				this.netHandler.consoleHandler.handleInput(msgText, new ConsoleCaller(this.netHandler, packet.contactName));
 			} else {
 				this.instance.sendMessageInGroup(packet.contactName, this.netHandler.userName, msg);
 			}

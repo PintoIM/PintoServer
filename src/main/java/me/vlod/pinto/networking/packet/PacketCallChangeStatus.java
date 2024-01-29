@@ -5,7 +5,6 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 
 import me.vlod.pinto.CallStatus;
-import me.vlod.pinto.Utils;
 
 public class PacketCallChangeStatus extends Packet {
 	public CallStatus callStatus;
@@ -21,13 +20,13 @@ public class PacketCallChangeStatus extends Packet {
 	@Override
 	public void read(DataInputStream stream) throws IOException {
 		this.callStatus = CallStatus.fromIndex(stream.readInt());
-		this.details = Utils.readPintoStringFromStream(stream, 64);
+		this.details = Packet.readString(stream, 64);
 	}
 	
 	@Override
 	public void write(DataOutputStream stream) throws IOException {
 		stream.writeInt(this.callStatus.getIndex());
-		Utils.writePintoStringToStream(stream, this.details, 64);
+		Packet.writeString(stream, this.details, 64);
 	}
 
 	@Override

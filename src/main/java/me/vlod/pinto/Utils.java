@@ -1,8 +1,6 @@
 package me.vlod.pinto;
 
 import java.io.BufferedReader;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -251,41 +249,7 @@ public class Utils {
 		return value;
 	}
 	
-	public static String readPintoStringFromStream(DataInputStream stream, int maxLength) throws IOException {
-	    int length = stream.readInt();
-	    if (length < 0) 
-	    	throw new IOException("Weird string, the length is less than 0!");
-	    if (length < 1) return "";
-	    
-	    byte[] buffer = new byte[length];
-	    stream.read(buffer);
-	    
-	    String str = new String(buffer, StandardCharsets.UTF_16BE);
-	    if (str.length() > maxLength)
-	    	throw new IllegalArgumentException(String.format(
-	    			"Read more data than allowed! (%d > %d)", 
-	    			str.length(), maxLength));
-	    
-	    return str;
-	}
-	
-	public static void writePintoStringToStream(DataOutputStream stream, 
-			String str, int maxLength) throws IOException {
-	    if (str.length() > maxLength)
-	    	str = str.substring(0, maxLength - 1);
-	    byte[] stringData = str.getBytes(StandardCharsets.UTF_16BE);
-	    
-		stream.writeInt(stringData.length);
-	    if (stringData.length < 1) return;
-	    
-	    stream.write(stringData);
-	}
-	
-	public static int getPintoStringSize(String str) {
-		return 4 + str.getBytes(StandardCharsets.UTF_16BE).length;
-	}
-
-    public static byte[] readNBytes(InputStream stream, int len) throws IOException {
+	public static byte[] readNBytes(InputStream stream, int len) throws IOException {
         if (len < 0) {
             throw new IllegalArgumentException("len < 0");
         }

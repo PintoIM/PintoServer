@@ -4,8 +4,6 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
-import me.vlod.pinto.Utils;
-
 public class PacketNotification extends Packet {
 	public int type;
 	public int autoCloseDelay;
@@ -36,16 +34,16 @@ public class PacketNotification extends Packet {
 	public void read(DataInputStream stream) throws IOException {
 		this.type = stream.read();
 		this.autoCloseDelay = stream.readInt();
-		this.title = Utils.readPintoStringFromStream(stream, 32);
-		this.body = Utils.readPintoStringFromStream(stream, 1024);
+		this.title = Packet.readString(stream, 32);
+		this.body = Packet.readString(stream, 1024);
 	}
 	
 	@Override
 	public void write(DataOutputStream stream) throws IOException {
 		stream.write(this.type);
 		stream.writeInt(this.autoCloseDelay);
-		Utils.writePintoStringToStream(stream, this.title, 32);
-		Utils.writePintoStringToStream(stream, this.body, 1024);
+		Packet.writeString(stream, this.title, 32);
+		Packet.writeString(stream, this.body, 1024);
 	}
 
 	@Override

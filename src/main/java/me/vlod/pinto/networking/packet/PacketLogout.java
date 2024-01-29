@@ -4,8 +4,6 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
-import me.vlod.pinto.Utils;
-
 public class PacketLogout extends Packet {
     public String reason;
     
@@ -17,12 +15,12 @@ public class PacketLogout extends Packet {
     
 	@Override
 	public void read(DataInputStream stream) throws IOException {
-		this.reason = Utils.readPintoStringFromStream(stream, 256);
+		this.reason = Packet.readString(stream, 256);
 	}
 	
 	@Override
 	public void write(DataOutputStream stream) throws IOException {
-		Utils.writePintoStringToStream(stream, this.reason, 256);
+		Packet.writeString(stream, this.reason, 256);
 	}
 
 	@Override

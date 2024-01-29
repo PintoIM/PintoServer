@@ -44,6 +44,7 @@ import me.vlod.pinto.logger.Logger;
 import me.vlod.pinto.networking.NetServerHandler;
 import me.vlod.pinto.networking.NetworkAddress;
 import me.vlod.pinto.networking.NetworkServer;
+import me.vlod.pinto.networking.PMSGMessage;
 import me.vlod.pinto.networking.packet.Packet;
 import me.vlod.pinto.networking.packet.PacketMessage;
 import me.vlod.pinto.plugin.PluginManager;
@@ -578,6 +579,10 @@ public class PintoServer implements Runnable {
 	}
 	
 	public void sendMessageInGroup(String groupID, String sender, String msg) {
+		this.sendMessageInGroup(groupID, sender, new PMSGMessage(msg));
+	}
+	
+	public void sendMessageInGroup(String groupID, String sender, PMSGMessage msg) {
 		GroupDatabaseEntry groupDatabaseEntry = new GroupDatabaseEntry(this, groupID);
 		groupDatabaseEntry.load();
 		
