@@ -32,9 +32,4 @@ public class PacketLogout extends Packet {
 	public int getPacketSize() {
 		return 256;
 	}
-	
-	@Override
-	public String getDataAsStr() {
-		return this.reason;
-	}
 }

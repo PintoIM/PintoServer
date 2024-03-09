@@ -40,14 +40,8 @@ public abstract class Packet {
 	    stream.write(stringData);
 	}
 
-    public String getDataAsStr() {
-    	return null;
-    }
-    
     @Override
     public final String toString() {
-    	String dataAsStr = this.getDataAsStr();
-    	dataAsStr = dataAsStr != null ? String.format("{%s}", dataAsStr) : "";
-    	return String.format("%s(%d)%s", this.getClass().getSimpleName(), this.getID(), dataAsStr);
+    	return String.format("%s (%d)", this.getClass().getSimpleName(), this.getID());
     }
 }

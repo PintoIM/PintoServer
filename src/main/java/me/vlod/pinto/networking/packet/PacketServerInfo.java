@@ -36,9 +36,4 @@ public class PacketServerInfo extends Packet {
 	public int getPacketSize() {
 		return 36 + 128;
 	}
-	
-	@Override
-	public String getDataAsStr() {
-		return this.serverID + "," + this.serverSoftware;
-	}
 }

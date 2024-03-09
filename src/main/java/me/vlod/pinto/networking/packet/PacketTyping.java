@@ -38,9 +38,4 @@ public class PacketTyping extends Packet {
 	public int getPacketSize() {
 		return NetServerHandler.USERNAME_MAX + 1;
 	}
-	
-	@Override
-	public String getDataAsStr() {
-		return this.contactName + "," + this.state;
-	}
 }

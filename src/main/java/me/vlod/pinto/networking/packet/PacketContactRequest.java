@@ -34,9 +34,4 @@ public class PacketContactRequest extends Packet {
 	public int getPacketSize() {
 		return NetServerHandler.USERNAME_MAX + 4;
 	}
-	
-	@Override
-	public String getDataAsStr() {
-		return this.contactName;
-	}
 }

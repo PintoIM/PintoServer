@@ -34,9 +34,4 @@ public class PacketRemoveContact extends Packet {
 	public int getPacketSize() {
 		return NetServerHandler.USERNAME_MAX;
 	}
-	
-	@Override
-	public String getDataAsStr() {
-		return this.contactName;
-	}
 }

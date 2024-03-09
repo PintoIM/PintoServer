@@ -31,9 +31,6 @@ public class NetServerHandler extends NetBaseHandler {
 	protected int noKeepAlivePacketTicks;
 	protected int messageRateLimitTicks;
 	protected ConsoleHandler consoleHandler;
-	public boolean inCall;
-	public String inCallWith;
-	public int callHostPort;
 	
 	public NetServerHandler(PintoServer instance, NetworkManager netManager, 
 			String userName, UserDatabaseEntry databaseEntry, String clientVersion) {

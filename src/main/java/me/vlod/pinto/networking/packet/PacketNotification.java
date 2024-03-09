@@ -55,9 +55,4 @@ public class PacketNotification extends Packet {
 	public int getPacketSize() {
 		return 1 + 4 + 32 + 1024;
 	}
-	
-	@Override
-	public String getDataAsStr() {
-		return this.type + "," + this.autoCloseDelay + "," + this.title + "," + this.body;
-	}
 }

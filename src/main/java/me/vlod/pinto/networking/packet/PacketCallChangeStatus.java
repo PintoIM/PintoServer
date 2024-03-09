@@ -38,9 +38,4 @@ public class PacketCallChangeStatus extends Packet {
 	public int getPacketSize() {
 		return 4 + 64;
 	}
-	
-	@Override
-	public String getDataAsStr() {
-		return this.callStatus + "," + this.details;
-	}
 }
