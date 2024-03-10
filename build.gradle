@@ -3,7 +3,7 @@ plugins {
     id 'java'
 }
 
-group "me.vlod"
+group "org.pintoim"
 version "b1.2"
 
 java {
@@ -14,7 +14,7 @@ java {
 
 jar {
     manifest {
-        attributes("Main-Class": "me.vlod.pinto.PintoServer")
+        attributes("Main-Class": "org.pintoim.pinto.PintoServer")
     }
 }
 
