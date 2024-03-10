@@ -8,7 +8,7 @@ import me.vlod.pinto.networking.NetServerHandler;
 import me.vlod.pinto.networking.PMSGMessage;
 
 public class PacketMessage extends Packet {
-	public static final int PAYLOAD_MAX_LENGTH = 8388608;
+	public static final int PAYLOAD_MAX_LENGTH = 0x800000; // 8 MB
     public String contactName;
     public String sender;
     public PMSGMessage payload;
@@ -53,7 +53,6 @@ public class PacketMessage extends Packet {
 
 	@Override
 	public int getPacketSize() {
-		// TODO: Figure this crap out
-		return NetServerHandler.USERNAME_MAX * 2 /*+ PAYLOAD_MAX_LENGTH*/;
+		return NetServerHandler.USERNAME_MAX * 2 + PAYLOAD_MAX_LENGTH;
 	}
 }

@@ -282,7 +282,7 @@ public class NetworkTCPManager implements NetworkManager {
 
 	@Override
 	public void processReceivedPackets() throws IOException {
-		if (this.sendQueueByteLength > 0x100000) { // A megabyte
+		if (this.sendQueueByteLength > 0x1_000_000) { // 16 megabytes
 			this.shutdown("Send buffer overflow");
 		}
 
