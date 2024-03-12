@@ -14,4 +14,5 @@ public class MainConfig implements Config {
 	public String heartbeatURL = "http://ponso00.com:8880/pinto-server-list/heartbeat.php";
 	public String heartbeatTags = "";
 	public String serverID = "";
+	public boolean noClientRegistrations = false;
 }

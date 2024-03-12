@@ -10,6 +10,7 @@ import org.pintoim.pinto.Utils;
 import org.pintoim.pinto.consolehandler.commands.Ban;
 import org.pintoim.pinto.consolehandler.commands.BanIP;
 import org.pintoim.pinto.consolehandler.commands.ChangePassword;
+import org.pintoim.pinto.consolehandler.commands.CreateAccount;
 import org.pintoim.pinto.consolehandler.commands.GetIP;
 import org.pintoim.pinto.consolehandler.commands.Kick;
 import org.pintoim.pinto.consolehandler.commands.KickIP;
@@ -43,6 +44,7 @@ public class ConsoleHandler {
         	this.commands.add(new ListUsers());
         	this.commands.add(new Notification());
         	this.commands.add(new ChangePassword());
+        	this.commands.add(new CreateAccount());
     	} else {
     		this.commands.add(new Add());
     		this.commands.add(new Remove());

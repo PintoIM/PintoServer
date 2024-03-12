@@ -92,6 +92,11 @@ public class UserDatabaseEntry {
 		}
 	}
 	
+	public static void registerHelper(PintoServer server, String userName, String password) {
+		String passwordHash = Utils.getSHA256HashFromStr("", password).toUpperCase();
+		registerAndReturnEntry(server, userName, passwordHash, UserStatus.ONLINE);
+	}
+	
 	public static UserDatabaseEntry registerAndReturnEntry(PintoServer server, String userName, 
 			String passwordHash, UserStatus status) {
 		try {

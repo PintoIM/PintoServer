@@ -171,6 +171,11 @@ public class NetLoginHandler extends NetBaseHandler {
     		return;
     	}
     	
+    	if (MainConfig.instance.noClientRegistrations) {
+    		this.kick("Sorry! Registrations are currently disabled!");
+    		return;
+    	}
+    	
     	// Create the database entry
     	this.databaseEntry = UserDatabaseEntry.registerAndReturnEntry(this.instance, packet.name,
     			packet.passwordHash, UserStatus.ONLINE);
