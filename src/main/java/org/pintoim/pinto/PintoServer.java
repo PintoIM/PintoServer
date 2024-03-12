@@ -54,6 +54,7 @@ import me.vlod.sql.SQLiteInterface;
 public class PintoServer implements Runnable {
 	public static final String VERSION_STRING = "b1.2";
 	public static final String SOFTWARE_INFO = "PintoServer/" + VERSION_STRING;
+	public static final boolean IS_RELEASE_CANDIDATE = true;
 	public static final String ASCII_LOGO = ""
 			+ " _____ _       _        _____                          \n"
 			+ "|  __ (_)     | |      / ____|                         \n"
@@ -160,6 +161,10 @@ public class PintoServer implements Runnable {
 				this.saveConfig();
 			}
 			logger.info("The ID of this server is %s", MainConfig.instance.serverID);
+			
+			if (PintoServer.IS_RELEASE_CANDIDATE) {
+				logger.warn("This is a release candidate build of the server!");
+			}
 			
 			// Load database
 			logger.info("Loading database...");

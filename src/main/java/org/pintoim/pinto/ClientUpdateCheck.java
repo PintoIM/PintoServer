@@ -46,6 +46,10 @@ public class ClientUpdateCheck {
 	}
 	
 	public static boolean isLatest(String version) {
+		if (PintoServer.IS_RELEASE_CANDIDATE) {
+			return true;
+		}
+		
 		try {
 			JSONObject information = getVersionInformation();
 			return version.equalsIgnoreCase(information.getString("latest"));
@@ -57,6 +61,10 @@ public class ClientUpdateCheck {
 	}
 	
 	public static boolean isSupported(String version) {
+		if (PintoServer.IS_RELEASE_CANDIDATE) {
+			return true;
+		}
+		
 		try {
 			JSONObject information = getVersionInformation();
 			return Arrays.asList(information.getJSONArray("supported")
